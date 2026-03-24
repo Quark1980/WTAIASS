@@ -38,20 +38,20 @@ class _MapScreenState extends State<MapScreen> {
     super.initState();
     WakelockPlus.enable();
     _apiService = WTApiService(ip: _ip);
-    _apiService!.onImageLoaded = () {
+    _apiService?.onImageLoaded = () {
       if (mounted) setState(() {});
     };
-    _apiService!.startPolling(
+    _apiService?.startPolling(
       onUpdate: () {
         setState(() {
-          _connected = _apiService!.lastConnectionOk;
-          _lastError = _apiService!.lastError;
+          _connected = _apiService?.lastConnectionOk ?? false;
+          _lastError = _apiService?.lastError;
         });
       },
     );
-    _ip = _apiService!.ip;
-    _connected = _apiService!.lastConnectionOk;
-    _lastError = _apiService!.lastError;
+    _ip = _apiService?.ip;
+    _connected = _apiService?.lastConnectionOk ?? false;
+    _lastError = _apiService?.lastError;
   }
 
   @override
@@ -78,19 +78,51 @@ class _MapScreenState extends State<MapScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Save'),
+            onPressed: () {
+              final ip = controller.text.trim();
+              if (ip.isNotEmpty) {
+                setState(() {
+                  _ip = ip;
+                  _apiService = WTApiService(ip: _ip);
+                  _apiService?.onImageLoaded = () {
+                    if (mounted) setState(() {});
+                  };
+                  _apiService?.startPolling(
+                    onUpdate: () {
+                      setState(() {
+                        _connected = _apiService?.lastConnectionOk ?? false;
+                        _lastError = _apiService?.lastError;
+                      });
+                    },
+                  );
+                });
+              }
+              Navigator.pop(context, ip);
+            },
+            child: const Text('OK'),
           ),
         ],
       ),
     );
     if (result != null && result.isNotEmpty) {
-      await _apiService?.setIp(result);
       setState(() {
         _ip = result;
+        _apiService = WTApiService(ip: _ip);
+        _apiService?.onImageLoaded = () {
+          if (mounted) setState(() {});
+        };
+        _apiService?.startPolling(
+          onUpdate: () {
+            setState(() {
+              _connected = _apiService?.lastConnectionOk ?? false;
+              _lastError = _apiService?.lastError;
+            });
+          },
+        );
       });
     }
   }
+// Duplicate/broken _showIpDialog removed
 
   @override
   Widget build(BuildContext context) {

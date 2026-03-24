@@ -58,20 +58,13 @@ class TacticalMapPainter extends CustomPainter {
     for (final unit in units) {
       final ux = (unit['x'] as num?)?.toDouble() ?? 0.0;
       final uy = (unit['y'] as num?)?.toDouble() ?? 0.0;
-      
-      // Bereken de ratio (0.0 tot 1.0) op basis van de game-wereld schaal
+      // Gebruik de juiste schaal en offset t.o.v. dstRect
       double xRatio = ux / mapMaxX;
       double yRatio = uy / mapMaxY;
-
-      // BELANGRIJK: Projecteer de ratio op de dstRect (de werkelijke kaart op het scherm)
-      // We tellen de offset (mapOffsetDX/DY) erbij op zodat ze op de kaart landen
-      double finalX = mapOffsetDX + (xRatio * displayW);
-      double finalY = mapOffsetDY + (yRatio * displayH);
-
-      // Richting van de unit (indien beschikbaar in JSON)
+      double drawX = dstRect.left + (xRatio * dstRect.width);
+      double drawY = dstRect.top + (yRatio * dstRect.height);
       final double angle = (unit['angle'] as num?)?.toDouble() ?? 0.0;
-
-      _drawArrow(canvas, Offset(finalX, finalY), angle, Colors.yellow, scale: 1.0);
+      _drawArrow(canvas, Offset(drawX, drawY), angle, Colors.yellow, scale: 1.0);
     }
   }
 
