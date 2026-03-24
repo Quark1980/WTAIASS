@@ -14,6 +14,7 @@ A modular Android application (Flutter) that visualizes live War Thunder telemet
 
 ---
 
+
 ## 📍 PHASE 1: PRECISION MAP RENDERING (Current Priority)
 The map and units must be 100% aligned. Do not proceed to AI features until this is pixel-perfect.
 
@@ -21,18 +22,42 @@ The map and units must be 100% aligned. Do not proceed to AI features until this
 - **Endpoints:** Poll `http://[IP]:8111/state`, `/map_info.json`, and `/map_obj.json` every 500ms.
 - **Map Image:** Fetch `http://[IP]:8111/map.img?gen=1`. Use a cache-buster timestamp to force refreshes.
 
-### 2. Coordinate Transformation (The Math)
-- **Input:** Use `map_min` and `map_max` from `/map_info.json`.
-- **Projection:** Translate normalized API coordinates (0.0 - 1.0) to local image pixels.
-- **Aspect Ratio:** Account for `BoxFit.contain` letterboxing. Mapping must be relative to the *image boundaries*, not the screen boundaries.
-- **Units:** Render the following icons:
-    - **Player:** White arrow (using `state['direction']` for rotation).
-    - **Friendlies:** Blue icons.
-    - **Enemies:** Red icons.
+### 2. Android Permissions & Networking
+- In `android/app/src/main/AndroidManifest.xml`:
+	- Add `<uses-permission android:name="android.permission.INTERNET" />` above the `<application>` tag.
+	- Add `android:usesCleartextTraffic="true"` inside the `<application>` tag to allow HTTP traffic to your PC.
 
-### 3. Interactive UI
-- Use `InteractiveViewer` for Pan & Zoom.
-- Ensure unit icons stay at a fixed visual size (don't grow huge when zooming in) but remain fixed to their geographical coordinate on the map.
+### 3. Coordinate Transformation (Projection Logic)
+- **Input:** Use `map_max` from `/map_info.json` (typically `[4096, 4096]`).
+- **Origin:** The in-game map uses the center as origin (0,0). The Flutter image uses the top-left as origin.
+- **Projection Formula:**
+	```dart
+	// Convert in-game (center-origin) to image (top-left-origin)
+	double xRatio = (ux + mapMaxX / 2) / mapMaxX;
+	double yRatio = 1.0 - ((uy + mapMaxY / 2) / mapMaxY); // y-axis flip
+	double drawX = dstRect.left + (xRatio * dstRect.width);
+	double drawY = dstRect.top + (yRatio * dstRect.height);
+	```
+- **Aspect Ratio:** Always use the `dstRect` (the actual drawn map area) for all projections, not the full widget size.
+- **Units:**
+	- Render units with `_drawArrow(canvas, Offset(drawX, drawY), angle, color)`
+	- Use `unit['angle']` for rotation.
+
+### 4. Null Safety & Code Hygiene
+- All usages of `apiService` in Dart use the `?` operator for null safety.
+- `.withOpacity(...)` is used for alpha where needed; no analyzer warnings remain.
+
+### 5. Interactive UI
+- Uses `InteractiveViewer` for pan & zoom.
+- Unit icons remain fixed in size and position relative to the map.
+
+### 6. Deployment
+- Build: `flutter build apk`
+- Deploy: `flutter install` (device must be connected via USB or network ADB)
+
+### 7. Troubleshooting
+- If units are not aligned: check if the in-game coordinates are center-origin and apply the projection formula above.
+- If the app cannot connect: ensure your device and PC are on the same network and HTTP is allowed in the manifest.
 
 ---
 
