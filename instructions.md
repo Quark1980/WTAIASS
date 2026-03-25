@@ -10,6 +10,22 @@
 - [ ] Bewaar trails en death-skulls met nieuwe data
 - [ ] Push alle wijzigingen naar GitHub
 
+### Project Doelen & Architectuur
+
+1. **API Koppeling:**
+	- Hoofdbron: `/map_obj.json` (posities).
+	- Secundair: `/state` (turret_angle) & `/indicators` (heading).
+
+2. **Visuals (MapPainter):**
+	- Iconen: Officiële NAVO/War Thunder symbolen (Switch-case op `unit['icon']`).
+	- Dynamiek: Trajectlijnen (5 min fade) + Death Skulls (60 sec fade).
+	- Schaling: Gebruik `effectiveScale` voor scherpte bij zoom.
+
+3. **Data Opslag:**
+	- Database: SQLite (sqflite).
+	- Limiet: Max 20 matches per map OF 100MB totaal.
+	- Doel: Toekomstige Heatmap generatie.
+
 # 🛰️ War Thunder Tactical AI Overlay - Project Roadmap & Instructions
 
 ## 🎯 Project Goal
@@ -184,6 +200,34 @@ Gebruik de volgende tekenregels in de `MapPainter` voor een authentieke weergave
 - Basis grootte: 4.0 - 5.0 pixels (bij 100% zoom).
 - Stroke width: 0.5 - 1.0 pixels.
 - Tekst grootte (afstand/zone): 8.0 pixels.
+
+Implementeer de volledige "Tactical Suite" voor de War Thunder Overlay op basis van de volgende technische specificaties:
+
+1. API INTEGRATIE (wt_api_service.dart):
+   - Breid de service uit om gelijktijdig /map_obj.json, /state en /indicators te pollen (interval 500ms).
+   - Koppel 'turret_angle' (/state) en 'heading' (/indicators) specifiek aan de unit met icon 'Player'.
+
+2. UNIT PROJECTIE & KLEUREN (map_painter.dart):
+   - Gebruik de "Perfect Alignment" formule voor x/y mapping:
+     * xRatio = (unitX + mapMaxX / 2) / mapMaxX
+     * yRatio = 1.0 - ((unitY + mapMaxY / 2) / mapMaxY)
+     * Teken op: dstRect.left + (ratio * dstRect.width/height).
+   - DYNAMISCHE KLEUREN: Haal de kleur direct uit unit['color'] via `Color(int.parse(unit['color'].replaceFirst('#', '0xff')))`.
+
+3. ADVANCED RENDERING (APP-6 STANDAARD):
+   - Implementeer een switch-case voor iconen:
+     * 'Player': Blauwe pijl (hull heading) + Cirkel met lijn (turret direction).
+     * 'HeavyTank': Vierkant met dikke verticale lijn in het midden.
+     * 'MediumTank': Standaard vierkant.
+     * 'LightTank': Vierkant met diagonale lijn (LB naar RO).
+     * 'TankDestroyer': Omgekeerde driehoek (punt omlaag).
+     * 'capture_zone': Cirkel met letter (A, B, C).
+   - SCALING: Gebruik `effectiveScale = 1.0 / zoomScale` voor alle iconen, strokes (0.5px) en tekst (size 8).
+
+4. TRAJECTEN & EFFECTEN:
+   - TRAILS: Teken de afgelegde route van de laatste 5 minuten met een lineaire fade-out (opacity 1.0 naar 0.0).
+   - DEATH SKULLS: Als een unit uit de JSON verdwijnt, toon een 'X' op de laatste locatie die in 60 seconden volledig uitfadet.
+   - AFSTAND:
 ---
 
 This file summarizes the War Thunder API endpoints and data fields as used by WTRTI for real-time HUD overlays and telemetry logging.

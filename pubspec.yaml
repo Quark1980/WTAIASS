@@ -33,6 +33,10 @@ dependencies:
   wakelock_plus: ^1.1.1
   sqflite: ^2.3.2
   path: ^1.8.3
+  shared_preferences: ^2.2.2
+  logger: ^2.0.2
+
+  package_info_plus: ^9.0.0
 
 dev_dependencies:
   flutter_test:
