@@ -8,6 +8,13 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
 class WTApiService extends ChangeNotifier {
+
+    /// Publieke helper om alle data opnieuw op te halen (voor debug refresh)
+    Future<void> refreshAll() async {
+      await _fetchAll();
+      await fetchMapImage();
+      notifyListeners();
+    }
   void stopPolling() {
     _pollingTimer?.cancel();
     _pollingTimer = null;
@@ -20,8 +27,11 @@ class WTApiService extends ChangeNotifier {
   String _ip = _defaultIp;
   Timer? _pollingTimer;
   Map<String, dynamic>? state;
+  Map<String, dynamic>? indicators;
   Map<String, dynamic>? mapInfo;
   List<dynamic>? mapObjects;
+  double? heading; // uit /indicators
+  double? turretAngle; // uit /state
   bool lastConnectionOk = false;
   String? lastError;
   ui.Image? mapImage;
@@ -90,6 +100,7 @@ class WTApiService extends ChangeNotifier {
   Future<void> _fetchAll() async {
     bool ok = true;
     String? error;
+    // Haal /state op
     state = await _fetchJson(
       'state',
       onError: (e) {
@@ -97,6 +108,15 @@ class WTApiService extends ChangeNotifier {
         error = e.toString();
       },
     );
+    // Haal /indicators op
+    indicators = await _fetchJson(
+      'indicators',
+      onError: (e) {
+        ok = false;
+        error = e.toString();
+      },
+    );
+    // Haal map_info.json op
     mapInfo = await _fetchJson(
       'map_info.json',
       onError: (e) {
@@ -104,6 +124,7 @@ class WTApiService extends ChangeNotifier {
         error = e.toString();
       },
     );
+    // Haal map_obj.json op
     final obj = await _fetchList(
       'map_obj.json',
       onError: (e) {
@@ -112,6 +133,17 @@ class WTApiService extends ChangeNotifier {
       },
     );
     mapObjects = obj;
+    // Extract heading (indicators) en turret_angle (state)
+    if (indicators != null && indicators!['heading'] != null) {
+      heading = (indicators!['heading'] as num).toDouble();
+    } else {
+      heading = null;
+    }
+    if (state != null && state!['turret_angle'] != null) {
+      turretAngle = (state!['turret_angle'] as num).toDouble();
+    } else {
+      turretAngle = null;
+    }
     if (mapObjects != null) {
       logger.i(
         'Aantal units gevonden: \u001b[32m${mapObjects!.length}\u001b[0m',
