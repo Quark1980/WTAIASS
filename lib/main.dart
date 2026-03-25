@@ -28,6 +28,7 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+    final TransformationController _transformationController = TransformationController();
   String? _ip;
   WTApiService? _apiService;
   bool _connected = false;
@@ -139,11 +140,17 @@ class _MapScreenState extends State<MapScreen> {
       body: Stack(
         children: [
           InteractiveViewer(
+            transformationController: _transformationController,
+            minScale: 0.1,
+            maxScale: 5.0,
+            boundaryMargin: const EdgeInsets.all(double.infinity),
+            onInteractionUpdate: (details) => setState(() {}),
             child: CustomPaint(
               painter: TacticalMapPainter(
                 mapImage: _apiService?.mapImage,
                 mapInfo: _apiService?.mapInfo,
                 mapObj: _apiService?.mapObjects != null ? { 'units': _apiService!.mapObjects } : null,
+                transform: _transformationController.value,
               ),
               child: Container(),
             ),

@@ -2,15 +2,18 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
+
 class TacticalMapPainter extends CustomPainter {
   final ui.Image? mapImage;
   final Map<String, dynamic>? mapInfo;
   final Map<String, dynamic>? mapObj;
+  final Matrix4 transform;
 
-  TacticalMapPainter({this.mapImage, this.mapInfo, this.mapObj});
+  TacticalMapPainter({this.mapImage, this.mapInfo, this.mapObj, required this.transform});
 
   @override
   void paint(Canvas canvas, Size size) {
+      final double zoomScale = transform.getMaxScaleOnAxis();
     // 1. Achtergrond en Debug Border
     final borderPaint = Paint()
       ..color = Colors.blueAccent
@@ -55,16 +58,17 @@ class TacticalMapPainter extends CustomPainter {
       mapMaxY = (mapInfo!['map_max'][1] as num?)?.toDouble() ?? 4096.0;
     }
 
+    // Oorsprong in het midden van de kaart: (0,0) = midden, (mapMaxX/2, mapMaxY/2) = rechtsboven
     for (final unit in units) {
       final ux = (unit['x'] as num?)?.toDouble() ?? 0.0;
       final uy = (unit['y'] as num?)?.toDouble() ?? 0.0;
-      // Gebruik de juiste schaal en offset t.o.v. dstRect
-      double xRatio = ux / mapMaxX;
-      double yRatio = uy / mapMaxY;
+      // Zet midden-oorsprong om naar linksboven-oorsprong
+      double xRatio = (ux + mapMaxX / 2) / mapMaxX;
+      double yRatio = 1.0 - ((uy + mapMaxY / 2) / mapMaxY); // y-as omdraaien
       double drawX = dstRect.left + (xRatio * dstRect.width);
       double drawY = dstRect.top + (yRatio * dstRect.height);
       final double angle = (unit['angle'] as num?)?.toDouble() ?? 0.0;
-      _drawArrow(canvas, Offset(drawX, drawY), angle, Colors.yellow, scale: 1.0);
+      _drawArrow(canvas, Offset(drawX, drawY), angle, Colors.yellow, scale: 1.0 / zoomScale);
     }
   }
 
