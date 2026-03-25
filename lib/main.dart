@@ -2,6 +2,7 @@ import 'package:wt_ai_assistant/services/wt_api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'widgets/map_painter.dart';
+import 'services/database_helper.dart';
 
 void main() {
   runApp(const WtAiAssistantApp());
@@ -49,90 +50,135 @@ class _MapScreenState extends State<MapScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'mapMaxX: $mapMaxX   mapMaxY: $mapMaxY',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Refresh'),
-                          onPressed: () async {
-                            await _apiService?.refreshAll();
-                            if (mounted) setState(() {});
-                            Navigator.pop(context);
-                            _showDebugUnitsSheet();
-                          },
+                  return Scaffold(
+                    appBar: AppBar(
+                      title: const Text('WT AI Assistant'),
+                      actions: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Center(child: Text('IP: ${_apiService?.ip ?? ''}')),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.bug_report),
+                          tooltip: 'Debug Units',
+                          onPressed: _showDebugUnitsSheet,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: units.isEmpty
-                          ? const Center(child: Text('Geen units gevonden.'))
-                          : ListView.builder(
-                              itemCount: units.length,
-                              itemBuilder: (context, idx) {
-                                final unit = units[idx];
-                                final type = unit['type']?.toString() ?? '';
-                                final isSteerable = type == 'steerable';
-                                final color = isSteerable ? Colors.blue : Colors.red;
-                                return ListTile(
-                                  title: Text(
-                                    'Type: $type',
-                                    style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                    body: Stack(
+                      children: [
+                        // Dashboard panel bovenaan
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            color: Colors.black.withOpacity(0.7),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Heading: {_apiService?.heading?.toStringAsFixed(1) ?? '-'}°',
+                                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                                   ),
-                                  subtitle: Text('X: ${unit['x']}, Y: ${unit['y']}, Angle: ${unit['angle']}'),
-                                );
-                              },
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    'Turret: {_apiService?.turretAngle?.toStringAsFixed(1) ?? '-'}°',
+                                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    'Speed: {_apiService?.state?['indicated_air_speed']?.toStringAsFixed(0) ?? _apiService?.state?['speed']?.toStringAsFixed(0) ?? '-'} km/h',
+                                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    'Altitude: {_apiService?.state?['altitude']?.toStringAsFixed(0) ?? '-'} m',
+                                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    'Fuel: {_apiService?.indicators?['fuel']?.toStringAsFixed(0) ?? '-'}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
                             ),
+                          ),
+                        ),
+                        // Kaart en overlays
+                        Positioned.fill(
+                          child: InteractiveViewer(
+                            transformationController: _transformationController,
+                            minScale: 0.1,
+                            maxScale: 5.0,
+                            boundaryMargin: const EdgeInsets.all(double.infinity),
+                            onInteractionUpdate: (details) => setState(() {}),
+                            child: CustomPaint(
+                              painter: TacticalMapPainter(
+                                mapImage: _apiService?.mapImage,
+                                mapInfo: _apiService?.mapInfo,
+                                mapObj: _apiService?.mapObjects != null ? { 'units': _apiService!.mapObjects } : null,
+                                transform: _transformationController.value,
+                                liveTrails: _liveTrails,
+                                deadUnits: _deadUnits,
+                                playerHeading: _apiService?.heading,
+                                playerTurretAngle: _apiService?.turretAngle,
+                              ),
+                              child: Container(),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 38,
+                          right: 12,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.circle,
+                                color: _connected ? Colors.green : Colors.red,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _connected ? 'Connected' : 'Disconnected',
+                                style: TextStyle(
+                                  color: _connected ? Colors.green : Colors.red,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_lastError != null && !_connected)
+                          Positioned(
+                            bottom: 100,
+                            left: 24,
+                            right: 24,
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withAlpha((0.9 * 255).toInt()),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'HTTP Error: $_lastError',
+                                style: const TextStyle(color: Colors.white),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      }
-    final TransformationController _transformationController = TransformationController();
-  String? _ip;
-  WTApiService? _apiService;
-  bool _connected = false;
-  String? _lastError;
-
-  @override
-  void initState() {
-    super.initState();
-    WakelockPlus.enable();
-    _apiService = WTApiService(ip: _ip);
-    _apiService?.onImageLoaded = () {
-      if (mounted) setState(() {});
-    };
-    _apiService?.startPolling(
-      onUpdate: () async {
-        final now = DateTime.now().millisecondsSinceEpoch;
-        final mapName = _apiService?.mapInfo?['map_name']?.toString() ?? '';
-        final units = _apiService?.mapObjects ?? [];
-        final Set<String> newUnitIds = {};
-        // Death detection: units die verdwenen zijn
-        for (final id in _lastUnitIds.difference(units.map((u) => u['id']?.toString() ?? '').toSet())) {
-          final lastTrail = _liveTrails[id]?.isNotEmpty == true ? _liveTrails[id]!.last : null;
-          if (lastTrail != null) {
-            _deadUnits[id] = {
-              'pos': lastTrail['pos'],
-              'color': lastTrail['color'],
-              'timestamp': now,
-            };
-          }
-        }
-        // Update trails en database logging
-        for (final unit in units) {
-          final id = unit['id']?.toString() ?? unit['name']?.toString() ?? unit['type']?.toString() ?? '';
-          newUnitIds.add(id);
+                    floatingActionButton: FloatingActionButton(
+                      onPressed: _showIpDialog,
+                      tooltip: 'Settings',
+                      child: const Icon(Icons.settings),
+                    ),
+                  );
           final x = (unit['x'] as num?)?.toDouble() ?? 0.0;
           final y = (unit['y'] as num?)?.toDouble() ?? 0.0;
           final type = unit['type']?.toString() ?? '';
@@ -376,3 +422,5 @@ class MapPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
+
+void unawaited(Future<void> f) {}

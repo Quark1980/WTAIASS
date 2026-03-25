@@ -1,3 +1,15 @@
+## Todo List (MeshcoreGRID)
+
+- [x] Update map_painter.dart voor trails, skulls, distance, scaling, fading
+- [-] Update instructions.md met gedetailleerde documentatie
+- [ ] Integreer API-data: heading/turret_angle in wt_api_service.dart
+- [ ] Render hull en turret met heading/turret_angle in map_painter.dart
+- [ ] Toon dynamische afstand en status in map_painter.dart
+- [ ] Log heading/turret_angle in SQLite trajectory history
+- [ ] Voeg dashboardpaneel toe voor live state in main.dart
+- [ ] Bewaar trails en death-skulls met nieuwe data
+- [ ] Push alle wijzigingen naar GitHub
+
 # 🛰️ War Thunder Tactical AI Overlay - Project Roadmap & Instructions
 
 ## 🎯 Project Goal
@@ -127,5 +139,51 @@ map image is here http://[IP]:8111/map.img?gen=1
 - [WTRTI Lua API](https://github.com/MeSoftHorny/WTRTI/blob/main/docs/docs/lua-api.md)
 https://github.com/lucasvmx/WarThunder-localhost-documentation
 
+
+### War Thunder API Unit Mapping (JSON)
+
+Gebruik deze lijst voor de `switch-case` logica in de `MapPainter` en de `DatabaseHelper`.
+
+| JSON `type`              | JSON `icon`       | Beschrijving                      | Visuele Prioriteit |
+|:-------------------------|:------------------|:----------------------------------|:-------------------|
+| `ground_model`           | `Player`          | Speler (Romp + Koepel/Loop)       | Hoog               |
+| `ground_model`           | `HeavyTank`       | Zware Tank (Ruit-vorm)            | Hoog               |
+| `ground_model`           | `MediumTank`      | Middelzware Tank (Vierkant)       | Medium             |
+| `ground_model`           | `LightTank`       | Lichte Tank (Driehoek)            | Medium             |
+| `ground_model`           | `TankDestroyer`   | Tankjager (Omgekeerde V)          | Hoog               |
+| `ground_model`           | `SPAA`            | Luchtafweer (Bol met lijnen)      | Medium             |
+| `capture_zone`           | `capture_zone`    | Cap Point (A, B, C)               | Hoog               |
+| `airfield`               | `none`            | Vliegveld / Landingstrip          | Laag               |
+| `respawn_base_tank`      | `none`            | Tank Spawn Locatie                | Laag               |
+| `respawn_base_fighter`   | `none`            | Vliegtuig Spawn (Jager)           | Laag               |
+| `respawn_base_bomber`    | `none`            | Vliegtuig Spawn (Bommenwerper)    | Laag               |
+| `air`                    | `Fighter`         | Vliegtuig (Jager)                 | Medium             |
+| `air`                    | `Bomber`          | Vliegtuig (Bommenwerper)          | Medium             |
+
+**Opmerking voor Logica:**
+- Als `icon == "none"`, gebruik dan het veld `type` om het symbool te bepalen.
+- Gebruik het veld `color` (Hex) voor de team-kleur, behalve bij de `Player` (gebruik daar de unieke Player-kleur of Blauw).
+
+### War Thunder Official Tactical Icons (APP-6 Derived)
+
+Gebruik de volgende tekenregels in de `MapPainter` voor een authentieke weergave. Alle iconen hebben een zwarte omlijning (stroke) van 0.5px voor contrast.
+
+| Unit `icon`       | Vorm Beschrijving                               | Render Logica (Flutter Path) |
+|:------------------|:-----------------------------------------------|:-----------------------------|
+| **MediumTank** | Standaard rechthoek/vierkant.                  | `canvas.drawRect`            |
+| **HeavyTank** | Vierkant met dikke verticale lijn in het midden.| `drawRect` + `drawLine(centerTop, centerBottom)` |
+| **LightTank** | Vierkant met één diagonale lijn.               | `drawRect` + `drawLine(bottomLeft, topRight)` |
+| **TankDestroyer** | Omgekeerde driehoek (punt naar beneden).       | `Path` (TopLeft -> TopRight -> BottomCenter) |
+| **SPAA** | Cirkel met twee 'antennes' aan de bovenkant.   | `drawCircle` + 2x `drawLine(top)` |
+| **Fighter** | Gestroomlijnde 'V' (pijlpunt).                 | `Path` (Pijlpunt vorm)       |
+| **Bomber** | Brede 'T' vorm (vliegtuig met spanwijdte).     | `Path` (T-vormig silhouet)   |
+| **Player** | Romp (pijl) + Koepel (cirkel) + Loop (lijn).   | Samengestelde `Path` & `Circle` |
+| **capture_zone** | Cirkel met de letter (A, B, C) in het midden.  | `drawCircle` + `TextPainter` |
+
+**Specifieke Afmetingen:**
+- Basis grootte: 4.0 - 5.0 pixels (bij 100% zoom).
+- Stroke width: 0.5 - 1.0 pixels.
+- Tekst grootte (afstand/zone): 8.0 pixels.
 ---
+
 This file summarizes the War Thunder API endpoints and data fields as used by WTRTI for real-time HUD overlays and telemetry logging.
