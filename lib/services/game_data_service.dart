@@ -6,54 +6,24 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/map_object.dart';
 
+
+
+/// Service voor ophalen en cachen van War Thunder map- en unitdata via de localhost API.
 class GameDataService extends ChangeNotifier {
-  String _ip = '192.168.0.61'; // Default IP for testing
-  dynamic mapObjJson;
-  dynamic stateJson;
-  dynamic mapInfoJson;
+  String _ip = '192.168.0.61'; // Default IP voor testen
+  List<dynamic> _mapObjects = [];
+  Map<String, dynamic>? _mapInfo;
   Timer? _timer;
 
-  // --- Live Map API ---
-  // TODO: Implementeer deze correct met echte data/mapping
-  Uint8List? get mapImage => null; // Voeg hier de echte image bytes toe
+  /// Publieke lijst van mapobjecten (zoals ontvangen van /map_obj.json)
+  List<dynamic> get mapObjects => _mapObjects;
 
-  List<MapObject> get mapObjects {
-    if (mapObjJson is List) {
-      return (mapObjJson as List)
-          .whereType<Map<String, dynamic>>()
-          .map((obj) => MapObject(
-                id: obj['id']?.toString() ?? '',
-                x: (obj['x'] as num?)?.toDouble() ?? 0.0,
-                y: (obj['y'] as num?)?.toDouble() ?? 0.0,
-                icon: obj['icon']?.toString() ?? '',
-                type: obj['type']?.toString() ?? '',
-                color: _parseColor(obj['color']),
-                heading: (obj['heading'] as num?)?.toDouble(),
-                isPlayer: obj['isPlayer'] == true,
-              ))
-          .toList();
-    }
-    return [];
-  }
+  /// Publieke mapinfo (zoals ontvangen van /map_info.json)
+  Map<String, dynamic>? get mapInfo => _mapInfo;
 
-  Color? _parseColor(dynamic color) {
-    if (color is int) {
-      return Color(color);
-    } else if (color is String) {
-      // Verwacht hex string als '#RRGGBB' of 'RRGGBB'
-      String hex = color.replaceAll('#', '');
-      if (hex.length == 6) {
-        return Color(int.parse('FF$hex', radix: 16));
-      } else if (hex.length == 8) {
-        return Color(int.parse(hex, radix: 16));
-      }
-    }
-    return null;
-  }
-  Map<String, dynamic>? get mapInfo => mapInfoJson is Map<String, dynamic> ? mapInfoJson as Map<String, dynamic> : null;
-  Map<String, Offset>? get previousPositions => null;
+  /// Publieke getter voor de mapafbeelding-URL (zoals gebruikt door MapPage)
+  String get mapImageUrl => 'http://$_ip:8111/map.img?gen=1';
 
   GameDataService() {
     _loadIp();
@@ -82,22 +52,36 @@ class GameDataService extends ChangeNotifier {
 
   Future<void> _fetchAll() async {
     await Future.wait([
-      _fetchJson('/map_obj.json').then((v) => mapObjJson = v),
-      _fetchJson('/state').then((v) => stateJson = v),
-      _fetchJson('/map_info.json').then((v) => mapInfoJson = v),
+      _fetchMapObjects(),
+      _fetchMapInfo(),
     ]);
     notifyListeners();
   }
 
-  Future<dynamic> _fetchJson(String endpoint) async {
+  Future<void> _fetchMapObjects() async {
     try {
-      final url = Uri.parse('http://$_ip:8111$endpoint');
-      final response = await http.get(url).timeout(const Duration(milliseconds: 800));
+      final response = await http.get(Uri.parse('http://$_ip:8111/map_obj.json'));
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        _mapObjects = json.decode(response.body) as List<dynamic>;
+      } else {
+        _mapObjects = [];
       }
-    } catch (_) {}
-    return null;
+    } catch (_) {
+      _mapObjects = [];
+    }
+  }
+
+  Future<void> _fetchMapInfo() async {
+    try {
+      final response = await http.get(Uri.parse('http://$_ip:8111/map_info.json'));
+      if (response.statusCode == 200) {
+        _mapInfo = json.decode(response.body) as Map<String, dynamic>?;
+      } else {
+        _mapInfo = null;
+      }
+    } catch (_) {
+      _mapInfo = null;
+    }
   }
 
   @override
@@ -105,4 +89,5 @@ class GameDataService extends ChangeNotifier {
     _timer?.cancel();
     super.dispose();
   }
+
 }

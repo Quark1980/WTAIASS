@@ -12,9 +12,9 @@ class DebugDataPage extends StatelessWidget {
       appBar: AppBar(title: const Text('Raw Data Inspector')),
       body: Consumer<GameDataService>(
         builder: (context, service, _) {
-          final mapObj = service.mapObjJson;
-          final state = service.stateJson;
-          final mapInfo = service.mapInfoJson;
+          final mapObj = service.mapObjects;
+          final state = null; // Geen state property meer
+          final mapInfo = service.mapInfo;
           return ListView(
             children: [
               _JsonExpansionTile(title: '/map_obj.json', jsonData: mapObj),
