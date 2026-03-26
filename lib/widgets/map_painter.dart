@@ -27,9 +27,18 @@ class TacticalMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // --- Local helpers at the top ---
+    /// Project War Thunder map coordinates (ux, uy) to screen coordinates (pixel-perfect, y-flip)
     Offset _projectToMap(Offset pos, Rect dstRect) {
-      final double drawX = dstRect.left + (pos.dx * dstRect.width);
-      final double drawY = dstRect.top + (pos.dy * dstRect.height);
+      // Requires mapInfo with mapMaxX and mapMaxY
+      if (mapInfo == null) return Offset.zero;
+      final double ux = pos.dx;
+      final double uy = pos.dy;
+      final double mapMaxX = (mapInfo!['mapMaxX'] as num?)?.toDouble() ?? 1.0;
+      final double mapMaxY = (mapInfo!['mapMaxY'] as num?)?.toDouble() ?? 1.0;
+      double xRatio = (ux + mapMaxX / 2) / mapMaxX;
+      double yRatio = 1.0 - ((uy + mapMaxY / 2) / mapMaxY); // Y-flip!
+      double drawX = dstRect.left + (xRatio * dstRect.width);
+      double drawY = dstRect.top + (yRatio * dstRect.height);
       return Offset(drawX, drawY);
     }
     void _drawSkull(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {

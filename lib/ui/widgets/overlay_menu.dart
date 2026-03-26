@@ -15,7 +15,7 @@ class OverlayMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return Positioned(
       right: 24,
-      bottom: 24,
+      bottom: 64, // verhoogd zodat menu niet onder navigatiebalk valt
       child: FloatingActionButton(
         child: const Icon(Icons.menu),
         onPressed: () {
@@ -24,6 +24,14 @@ class OverlayMenu extends StatelessWidget {
             builder: (ctx) => Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                ListTile(
+                  leading: const Icon(Icons.map),
+                  title: const Text('Start Live Map'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.of(context).pushNamed('/map');
+                  },
+                ),
                 ListTile(
                   leading: const Icon(Icons.settings),
                   title: const Text('Settings'),

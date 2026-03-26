@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../services/game_data_service.dart';
 import 'widgets/overlay_menu.dart';
 import 'pages/debug_data_page.dart';
+import 'pages/map_page.dart';
 class GameStateScreen extends StatefulWidget {
   const GameStateScreen({super.key});
 

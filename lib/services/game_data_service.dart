@@ -1,15 +1,59 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/map_object.dart';
+
 class GameDataService extends ChangeNotifier {
-  String _ip = '192.168.1.100';
+  String _ip = '192.168.0.61'; // Default IP for testing
   dynamic mapObjJson;
   dynamic stateJson;
   dynamic mapInfoJson;
   Timer? _timer;
+
+  // --- Live Map API ---
+  // TODO: Implementeer deze correct met echte data/mapping
+  Uint8List? get mapImage => null; // Voeg hier de echte image bytes toe
+
+  List<MapObject> get mapObjects {
+    if (mapObjJson is List) {
+      return (mapObjJson as List)
+          .whereType<Map<String, dynamic>>()
+          .map((obj) => MapObject(
+                id: obj['id']?.toString() ?? '',
+                x: (obj['x'] as num?)?.toDouble() ?? 0.0,
+                y: (obj['y'] as num?)?.toDouble() ?? 0.0,
+                icon: obj['icon']?.toString() ?? '',
+                type: obj['type']?.toString() ?? '',
+                color: _parseColor(obj['color']),
+                heading: (obj['heading'] as num?)?.toDouble(),
+                isPlayer: obj['isPlayer'] == true,
+              ))
+          .toList();
+    }
+    return [];
+  }
+
+  Color? _parseColor(dynamic color) {
+    if (color is int) {
+      return Color(color);
+    } else if (color is String) {
+      // Verwacht hex string als '#RRGGBB' of 'RRGGBB'
+      String hex = color.replaceAll('#', '');
+      if (hex.length == 6) {
+        return Color(int.parse('FF$hex', radix: 16));
+      } else if (hex.length == 8) {
+        return Color(int.parse(hex, radix: 16));
+      }
+    }
+    return null;
+  }
+  Map<String, dynamic>? get mapInfo => mapInfoJson is Map<String, dynamic> ? mapInfoJson as Map<String, dynamic> : null;
+  Map<String, Offset>? get previousPositions => null;
 
   GameDataService() {
     _loadIp();

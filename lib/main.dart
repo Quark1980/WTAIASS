@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'ui/game_state_screen.dart';
+import 'ui/pages/map_page.dart';
 import 'services/game_data_service.dart';
 
 void main() {
@@ -28,6 +29,9 @@ class ModularAiWingmanApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const GameStateScreen(),
+      routes: {
+        '/map': (context) => const MapPage(),
+      },
     );
   }
 }

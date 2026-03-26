@@ -89,6 +89,32 @@ The map and units must be 100% aligned. Do not proceed to AI features until this
 
 ---
 
+## 8. Live Tactical Map: Implementatie & Logica
+
+- **Nieuwe bestanden:**  
+	- `lib/ui/pages/map_page.dart` (Live Map UI)
+	- `lib/ui/widgets/map_painter.dart` (CustomPainter voor iconen, pijlen, kleuren)
+	- `lib/models/map_object.dart` (Model voor mapobjecten)
+	- `lib/services/game_data_service.dart` (API polling, getters voor mapImage, mapObjects, mapInfo, previousPositions)
+
+- **Rendering:**  
+	- Map en units worden pixel-perfect geprojecteerd met center-origin naar top-left-origin conversie.
+	- Icons en kleuren worden bepaald via een mapping op basis van `type` en `icon` uit de JSON (zie mappingtabel).
+	- Richtingspijlen worden getekend op basis van heading of vorige positie.
+	- Eigen speler altijd blauw, teamkleuren uit het color-veld van de JSON.
+
+- **Realtime data:**  
+	- GameDataService pollt `/map_obj.json`, `/state`, `/map_info.json` elke seconde.
+	- MapImage wordt opgehaald via `/map.img?gen=1` (optioneel cache-busting).
+	- Alle relevante data wordt via public getters beschikbaar gemaakt voor de UI.
+
+- **UI/UX:**  
+	- OverlayMenu bevat een knop om de Live Map te openen.
+	- MapPage gebruikt InteractiveViewer voor pannen/zoomen, CustomPaint voor rendering.
+	- Alles is null-safe en geoptimaliseerd voor performance.
+
+---
+
 ## 🧠 PHASE 2: MODULAR AI & LOGIC (Future)
 - **Gemini Integration:** Analyze `/gamechat` and `/state
 

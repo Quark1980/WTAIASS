@@ -37,10 +37,17 @@ Een modulaire Android-applicatie die als 'Tactical Advisor' fungeert tijdens War
 
 ## 🚀 Roadmap & Doelen
 ...
+- [x] **Fase 2: Visuele Basis**
+        - [x] Live Tactical Map module:
+            - Pixel-perfect rendering van map en units.
+            - Dynamische iconen, kleuren en richtingspijlen per unit.
+            - Realtime koppeling met War Thunder API (`/map_obj.json`, `/state`, `/map_info.json`).
+            - OverlayMenu en navigatie naar MapPage geïntegreerd.
+        - [x] Alle buildfouten opgelost, project bouwt en draait stabiel.
 - [x] **Fase 1: Connectiviteit**
     - [x] Flutter-omgeving opzetten.
     - [/] Floating Menu voor IP-configuratie (In progress).
-    - [/] Live Data Inspector (In progress).
+    - [x] Live Data Inspector (In progress).
 ...
 
 ## 🔧 Componenten (Modulair)
