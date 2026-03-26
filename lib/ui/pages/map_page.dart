@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../services/game_data_service.dart';
 import '../widgets/map_painter.dart';
 import '../widgets/map_filter_menu.dart';
-import '../widgets/hudmsg_bar.dart';
 
 class MapPage extends StatelessWidget {
   const MapPage({super.key});
@@ -21,7 +20,6 @@ class _MapPageWithFilter extends StatefulWidget {
 }
 
 class _MapPageWithFilterState extends State<_MapPageWithFilter> {
-    bool wasMapObjectsEmpty = true;
   Set<String> selectedTypes = {};
   Set<String> knownTypes = {};
   String? lastMapId;
@@ -86,12 +84,6 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
     if (allTypes.isNotEmpty) {
       knownTypes.addAll(allTypes);
     }
-    // Forceer refresh van map image zodra er weer data binnenkomt na een lege periode
-    final isNowNotEmpty = gameData.mapObjects.isNotEmpty;
-    if (wasMapObjectsEmpty && isNowNotEmpty) {
-      lastMapImageKey = DateTime.now().millisecondsSinceEpoch.toString();
-    }
-    wasMapObjectsEmpty = !isNowNotEmpty ? true : false;
     // Gebruik fallbackTypes als er geen bekende types zijn
     final typesForFilter = knownTypes.isNotEmpty
         ? knownTypes
@@ -135,50 +127,36 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
         ],
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: InteractiveViewer(
-                minScale: 0.3,
-                maxScale: 10.0,
-                child: Container(
-                  color: Colors.black,
-                  child: AspectRatio(
-                    aspectRatio: aspect,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        if (gameData.mapImageUrl.isNotEmpty)
-                          Image.network(
-                            gameData.mapImageUrl,
-                            key: ValueKey(lastMapImageKey ?? (gameData.mapInfo != null ? (gameData.mapInfo!['name'] ?? gameData.mapInfo!['id'] ?? DateTime.now().millisecondsSinceEpoch) : DateTime.now().millisecondsSinceEpoch)),
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Text('Minimap niet geladen', style: TextStyle(color: Colors.white70)),
-                                  const SizedBox(height: 8),
-                                  Text('URL: \n${gameData.mapImageUrl}', style: const TextStyle(fontSize: 10, color: Colors.white38)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        CustomPaint(
-                          size: Size.infinite,
-                          painter: MapPainter(
-                            mapObjects: filteredObjects,
-                            mapInfo: gameData.mapInfo,
-                          ),
-                        ),
-                      ],
+        child: InteractiveViewer(
+          minScale: 0.3,
+          maxScale: 10.0,
+          child: Container(
+            color: Colors.black,
+            child: AspectRatio(
+              aspectRatio: aspect,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (gameData.mapImageUrl.isNotEmpty)
+                    Image.network(
+                      gameData.mapImageUrl,
+                      key: ValueKey(lastMapImageKey ?? (gameData.mapInfo != null ? (gameData.mapInfo!['name'] ?? gameData.mapInfo!['id'] ?? DateTime.now().millisecondsSinceEpoch) : DateTime.now().millisecondsSinceEpoch)),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Text('Minimap niet geladen', style: TextStyle(color: Colors.white70)),
+                      ),
+                    ),
+                  CustomPaint(
+                    size: Size.infinite,
+                    painter: MapPainter(
+                      mapObjects: filteredObjects,
+                      mapInfo: gameData.mapInfo,
                     ),
                   ),
-                ),
+                ],
               ),
             ),
-            const HudmsgBar(),
-          ],
+          ),
         ),
       ),
     );
