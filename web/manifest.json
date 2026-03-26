@@ -1,6 +1,6 @@
 {
-    "name": "wt_ai_assistant",
-    "short_name": "wt_ai_assistant",
+    "name": "wt_copilot",
+    "short_name": "wt_copilot",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

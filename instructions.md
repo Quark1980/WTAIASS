@@ -1,4 +1,4 @@
-## Todo List (MeshcoreGRID)
+## Todo List
 
 - [x] Update map_painter.dart voor trails, skulls, distance, scaling, fading
 - [-] Update instructions.md met gedetailleerde documentatie
