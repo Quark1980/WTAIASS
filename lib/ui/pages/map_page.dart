@@ -84,10 +84,12 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
     if (allTypes.isNotEmpty) {
       knownTypes.addAll(allTypes);
     }
-    // Gebruik fallbackTypes als er geen bekende types zijn
-    final typesForFilter = knownTypes.isNotEmpty
-        ? knownTypes
-        : (allTypes.isNotEmpty ? allTypes : fallbackTypes);
+    // Toon altijd alle bekende types én fallback types (uniek)
+    final typesForFilter = <String>{
+      ...knownTypes,
+      ...allTypes,
+      ...fallbackTypes,
+    };
     // Init: als nog geen selectie, alles aan
     if (selectedTypes.isEmpty && typesForFilter.isNotEmpty) {
       selectedTypes = Set<String>.from(typesForFilter);
@@ -122,6 +124,15 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                 });
                 _saveFilterPrefs();
               }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Ververs map image',
+            onPressed: () {
+              setState(() {
+                lastMapImageKey = DateTime.now().millisecondsSinceEpoch.toString();
+              });
             },
           ),
         ],

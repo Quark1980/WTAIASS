@@ -34,9 +34,24 @@ class MapPainter extends CustomPainter {
       final double drawY = y * size.height;
       final Offset pos = Offset(drawX, drawY);
 
+      // Compenseer voor zoom: radius delen door de schaal van de canvas t.o.v. de originele map
+      double scale = 1.0;
+      if (size.width > 0 && size.height > 0 && mapInfo != null) {
+        final widthVal = mapInfo!['width'];
+        final heightVal = mapInfo!['height'];
+        if (widthVal != null && heightVal != null) {
+          final double baseW = (widthVal as num).toDouble();
+          final double baseH = (heightVal as num).toDouble();
+          final double scaleW = size.width / baseW;
+          final double scaleH = size.height / baseH;
+          scale = (scaleW + scaleH) / 2.0;
+        }
+      }
+
       // Capture point: vierkant met letter
       if ((obj['type'] == 'capture_zone' || obj['type'] == 'zone') && obj['icon'] is String && (obj['icon'] as String).isNotEmpty) {
-        const double sizeSq = 12;
+        // Vierkant blijft 12px, compenseer voor zoom
+        final double sizeSq = 12 / scale;
         final rect = Rect.fromCenter(center: pos, width: sizeSq, height: sizeSq);
         canvas.drawRect(rect, fillPaint);
         canvas.drawRect(rect, strokePaint);
@@ -44,15 +59,16 @@ class MapPainter extends CustomPainter {
         final String letter = (obj['icon'] as String).substring(0, 1).toUpperCase();
         final textSpan = TextSpan(
           text: letter,
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10 / scale),
         );
         final tp = TextPainter(text: textSpan, textAlign: TextAlign.center, textDirection: TextDirection.ltr);
         tp.layout();
         tp.paint(canvas, pos - Offset(tp.width / 2, tp.height / 2));
       } else {
-        // Normale unit: klein bolletje
-        canvas.drawCircle(pos, 5, fillPaint);
-        canvas.drawCircle(pos, 5, strokePaint);
+        // Normale unit: altijd 5px ongeacht zoom
+        final double r = 5 / scale;
+        canvas.drawCircle(pos, r, fillPaint);
+        canvas.drawCircle(pos, r, strokePaint);
       }
 
       // Richtingspijl indien dx/dy aanwezig
