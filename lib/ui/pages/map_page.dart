@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../services/game_data_service.dart';
 import '../widgets/map_painter.dart';
 import '../widgets/map_filter_menu.dart';
+import '../widgets/map_display.dart';
 
 class MapPage extends StatelessWidget {
   const MapPage({super.key});
@@ -20,9 +21,12 @@ class _MapPageWithFilter extends StatefulWidget {
 }
 
 class _MapPageWithFilterState extends State<_MapPageWithFilter> {
+    final TransformationController _transformationController = TransformationController();
+    double _currentScale = 1.0;
   Set<String> selectedTypes = {};
   Set<String> knownTypes = {};
   String? lastMapId;
+  int? lastMapGeneration;
   String? lastMapImageKey;
     @override
     void initState() {
@@ -61,20 +65,22 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
     final mapInfo = gameData.mapInfo;
     double aspect = 1.0;
     String? mapId;
+    int? mapGeneration;
     if (mapInfo != null) {
       if (mapInfo['width'] != null && mapInfo['height'] != null) {
         final w = (mapInfo['width'] as num).toDouble();
         final h = (mapInfo['height'] as num).toDouble();
         if (w > 0 && h > 0) aspect = w / h;
       }
-      // Gebruik mapInfo['id'] of ['name'] als unieke map-id
       mapId = mapInfo['id']?.toString() ?? mapInfo['name']?.toString();
+      mapGeneration = gameData.mapGeneration;
     }
 
-    // Forceer refresh van map image bij nieuwe match (nieuwe mapId)
-    if (mapId != null && mapId != lastMapId) {
+    // Forceer refresh van map image bij nieuwe match (nieuwe mapId of mapGeneration)
+    if (mapId != null && (mapId != lastMapId || mapGeneration != lastMapGeneration)) {
       lastMapId = mapId;
-      // Unieke key voor Image.network zodat deze geforceerd ververst
+      lastMapGeneration = mapGeneration;
+      // Unieke key voor MapDisplay zodat deze geforceerd ververst
       lastMapImageKey = DateTime.now().millisecondsSinceEpoch.toString();
     }
 
@@ -126,45 +132,41 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
               }
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Ververs map image',
-            onPressed: () {
-              setState(() {
-                lastMapImageKey = DateTime.now().millisecondsSinceEpoch.toString();
-              });
-            },
-          ),
         ],
       ),
       body: SafeArea(
         child: InteractiveViewer(
           minScale: 0.3,
           maxScale: 10.0,
+          transformationController: _transformationController,
+          onInteractionUpdate: (details) {
+            final matrix = _transformationController.value;
+            // Schaal is matrix[0] (x) of matrix[3] (y), neem gemiddelde voor uniform scaling
+            final scale = (matrix.storage[0] + matrix.storage[5]) / 2.0;
+            setState(() {
+              _currentScale = scale;
+            });
+          },
           child: Container(
             color: Colors.black,
-            child: AspectRatio(
+            child: MapDisplay(
+              key: ValueKey(lastMapImageKey ?? (gameData.mapInfo != null ? (gameData.mapInfo!['name'] ?? gameData.mapInfo!['id'] ?? DateTime.now().millisecondsSinceEpoch) : DateTime.now().millisecondsSinceEpoch)),
+              imageUrl: gameData.getMapImageUrl(),
               aspectRatio: aspect,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (gameData.mapImageUrl.isNotEmpty)
-                    Image.network(
-                      gameData.mapImageUrl,
-                      key: ValueKey(lastMapImageKey ?? (gameData.mapInfo != null ? (gameData.mapInfo!['name'] ?? gameData.mapInfo!['id'] ?? DateTime.now().millisecondsSinceEpoch) : DateTime.now().millisecondsSinceEpoch)),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Center(
-                        child: Text('Minimap niet geladen', style: TextStyle(color: Colors.white70)),
-                      ),
-                    ),
-                  CustomPaint(
-                    size: Size.infinite,
-                    painter: MapPainter(
-                      mapObjects: filteredObjects,
-                      mapInfo: gameData.mapInfo,
-                    ),
-                  ),
-                ],
+              placeholderText: 'Minimap niet geladen',
+              onReload: () {
+                setState(() {
+                  // Forceer unieke URL voor cache-busting
+                  lastMapImageKey = DateTime.now().millisecondsSinceEpoch.toString();
+                });
+              },
+              overlay: CustomPaint(
+                size: Size.infinite,
+                painter: MapPainter(
+                  mapObjects: filteredObjects,
+                  mapInfo: gameData.mapInfo,
+                  zoomScale: _currentScale,
+                ),
               ),
             ),
           ),

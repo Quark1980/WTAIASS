@@ -24,7 +24,28 @@ class GameDataService extends ChangeNotifier {
   Map<String, dynamic>? get mapInfo => _mapInfo;
 
   /// Publieke getter voor de mapafbeelding-URL (zoals gebruikt door MapPage)
-  String get mapImageUrl => 'http://$_ip:8111/map.img?gen=1';
+  /// Geeft een cache-busting URL met mapGeneration of timestamp
+  String get mapImageUrl => getMapImageUrl();
+
+  /// Geeft de huidige map generatie (indien beschikbaar)
+  int get mapGeneration {
+    if (_mapInfo != null && _mapInfo!.containsKey('map_generation')) {
+      final gen = _mapInfo!['map_generation'];
+      if (gen is int) return gen;
+      if (gen is String) return int.tryParse(gen) ?? 1;
+    }
+    return 1;
+  }
+
+  /// Genereer een cache-busting map image URL
+  String getMapImageUrl({bool unique = false}) {
+    final base = 'http://$_ip:8111/map.img?gen=${mapGeneration}';
+    if (unique) {
+      // Voeg timestamp toe voor geforceerde refresh
+      return base + '&cb=' + DateTime.now().millisecondsSinceEpoch.toString();
+    }
+    return base;
+  }
 
   /// Publieke getter voor de state data (zoals ontvangen van /state)
   Map<String, dynamic>? get stateJson => _stateJson;

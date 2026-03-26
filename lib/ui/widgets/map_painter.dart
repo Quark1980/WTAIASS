@@ -3,17 +3,19 @@ import 'package:flutter/material.dart';
 class MapPainter extends CustomPainter {
   final List<dynamic> mapObjects;
   final Map<String, dynamic>? mapInfo;
+  final double zoomScale;
 
-  MapPainter({required this.mapObjects, this.mapInfo});
+  MapPainter({required this.mapObjects, this.mapInfo, this.zoomScale = 1.0});
 
   @override
   void paint(Canvas canvas, Size size) {
     if (mapObjects.isEmpty) return;
 
-    final fillPaint = Paint()..style = PaintingStyle.fill;
+    final fillPaint = Paint()
+      ..style = PaintingStyle.fill;
     final strokePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
+      ..strokeWidth = 1.5 / zoomScale
       ..color = Colors.black;
 
     for (var obj in mapObjects) {
@@ -50,8 +52,8 @@ class MapPainter extends CustomPainter {
 
       // Capture point: vierkant met letter
       if ((obj['type'] == 'capture_zone' || obj['type'] == 'zone') && obj['icon'] is String && (obj['icon'] as String).isNotEmpty) {
-        // Vierkant blijft 12px, compenseer voor zoom
-        final double sizeSq = 12 / scale;
+        // Vierkant blijft 12px op scherm, compenseer voor zoomScale
+        final double sizeSq = 12 / zoomScale;
         final rect = Rect.fromCenter(center: pos, width: sizeSq, height: sizeSq);
         canvas.drawRect(rect, fillPaint);
         canvas.drawRect(rect, strokePaint);
@@ -59,14 +61,15 @@ class MapPainter extends CustomPainter {
         final String letter = (obj['icon'] as String).substring(0, 1).toUpperCase();
         final textSpan = TextSpan(
           text: letter,
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10 / scale),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10 / zoomScale),
         );
         final tp = TextPainter(text: textSpan, textAlign: TextAlign.center, textDirection: TextDirection.ltr);
         tp.layout();
         tp.paint(canvas, pos - Offset(tp.width / 2, tp.height / 2));
       } else {
-        // Normale unit: altijd 5px ongeacht zoom
-        final double r = 5 / scale;
+        // Normale unit: altijd 5px op scherm, compenseer voor zoomScale
+        final double r = 5 / zoomScale;
+        // Vulcirkel altijd met strokeWidth=0 (default), outline schaalt met zoom
         canvas.drawCircle(pos, r, fillPaint);
         canvas.drawCircle(pos, r, strokePaint);
       }
@@ -79,7 +82,7 @@ class MapPainter extends CustomPainter {
           final endPos = pos + Offset(dx * 15, dy * 15);
           final arrowPaint = Paint()
             ..color = teamColor
-            ..strokeWidth = 1.5
+            ..strokeWidth = 1.5 / zoomScale
             ..style = PaintingStyle.stroke;
           canvas.drawLine(pos, endPos, arrowPaint);
         }
