@@ -20,6 +20,7 @@ class _MapPageWithFilter extends StatefulWidget {
 }
 
 class _MapPageWithFilterState extends State<_MapPageWithFilter> {
+    bool wasMapObjectsEmpty = true;
   Set<String> selectedTypes = {};
   Set<String> knownTypes = {};
   String? lastMapId;
@@ -84,6 +85,12 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
     if (allTypes.isNotEmpty) {
       knownTypes.addAll(allTypes);
     }
+    // Forceer refresh van map image zodra er weer data binnenkomt na een lege periode
+    final isNowNotEmpty = gameData.mapObjects.isNotEmpty;
+    if (wasMapObjectsEmpty && isNowNotEmpty) {
+      lastMapImageKey = DateTime.now().millisecondsSinceEpoch.toString();
+    }
+    wasMapObjectsEmpty = !isNowNotEmpty ? true : false;
     // Gebruik fallbackTypes als er geen bekende types zijn
     final typesForFilter = knownTypes.isNotEmpty
         ? knownTypes
@@ -142,8 +149,15 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                       gameData.mapImageUrl,
                       key: ValueKey(lastMapImageKey ?? (gameData.mapInfo != null ? (gameData.mapInfo!['name'] ?? gameData.mapInfo!['id'] ?? DateTime.now().millisecondsSinceEpoch) : DateTime.now().millisecondsSinceEpoch)),
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Center(
-                        child: Text('Minimap niet geladen', style: TextStyle(color: Colors.white70)),
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('Minimap niet geladen', style: TextStyle(color: Colors.white70)),
+                            const SizedBox(height: 8),
+                            Text('URL: \n${gameData.mapImageUrl}', style: const TextStyle(fontSize: 10, color: Colors.white38)),
+                          ],
+                        ),
                       ),
                     ),
                   CustomPaint(
