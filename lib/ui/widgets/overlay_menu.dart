@@ -15,7 +15,7 @@ class OverlayMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return Positioned(
       right: 24,
-      bottom: 64, // verhoogd zodat menu niet onder navigatiebalk valt
+      bottom: 96, // extra hoog zodat menu niet onder navbar valt
       child: FloatingActionButton(
         child: const Icon(Icons.menu),
         onPressed: () {

@@ -41,14 +41,30 @@ class _GameStateScreenState extends State<GameStateScreen> {
           appBar: AppBar(title: const Text('War Thunder Game State')),
           body: Consumer<GameDataService>(
             builder: (context, service, _) {
-              // Geen state property meer beschikbaar
-              return const Center(child: Text('Geen state data beschikbaar'));
+              final state = service.stateJson;
+              if (state == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Latitude:   	${state['latitude'] ?? '-'}'),
+                    Text('Longitude:  	${state['longitude'] ?? '-'}'),
+                    Text('Altitude:   	${state['altitude'] ?? '-'}'),
+                    Text('Deaths:     	${state['deaths'] ?? '-'}'),
+                  ],
+                ),
+              );
             },
           ),
         ),
+        // OverlayMenu zwevend rechtsonder
         OverlayMenu(
           onShowSettings: _showSettings,
           onShowDebug: _showDebug,
+          // De bottom-margin wordt in OverlayMenu geregeld
         ),
       ],
     );

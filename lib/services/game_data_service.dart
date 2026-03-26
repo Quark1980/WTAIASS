@@ -15,6 +15,7 @@ class GameDataService extends ChangeNotifier {
   List<dynamic> _mapObjects = [];
   Map<String, dynamic>? _mapInfo;
   Timer? _timer;
+  Map<String, dynamic>? _stateJson;
 
   /// Publieke lijst van mapobjecten (zoals ontvangen van /map_obj.json)
   List<dynamic> get mapObjects => _mapObjects;
@@ -24,6 +25,9 @@ class GameDataService extends ChangeNotifier {
 
   /// Publieke getter voor de mapafbeelding-URL (zoals gebruikt door MapPage)
   String get mapImageUrl => 'http://$_ip:8111/map.img?gen=1';
+
+  /// Publieke getter voor de state data (zoals ontvangen van /state)
+  Map<String, dynamic>? get stateJson => _stateJson;
 
   GameDataService() {
     _loadIp();
@@ -54,8 +58,22 @@ class GameDataService extends ChangeNotifier {
     await Future.wait([
       _fetchMapObjects(),
       _fetchMapInfo(),
+      _fetchStateJson(),
     ]);
     notifyListeners();
+  }
+
+  Future<void> _fetchStateJson() async {
+    try {
+      final response = await http.get(Uri.parse('http://$_ip:8111/state'));
+      if (response.statusCode == 200) {
+        _stateJson = json.decode(response.body) as Map<String, dynamic>?;
+      } else {
+        _stateJson = null;
+      }
+    } catch (_) {
+      _stateJson = null;
+    }
   }
 
   Future<void> _fetchMapObjects() async {
