@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../services/game_data_service.dart';
 import '../../services/unit_history_provider.dart';
 import '../widgets/map_painter.dart';
 import '../widgets/map_filter_menu.dart';
 import '../widgets/map_display.dart';
-
 import '../../logic/tracker_service.dart';
 import '../../services/database_helper.dart';
 import '../../services/wt_api_service.dart';
@@ -27,6 +29,13 @@ class _MapPageWithFilter extends StatefulWidget {
 }
 
 class _MapPageWithFilterState extends State<_MapPageWithFilter> {
+    void _showDebugSheet() {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (ctx) => const _LiveDebugDataSheet(),
+      );
+    }
   final UnitHistoryProvider _unitHistoryProvider = UnitHistoryProvider();
   final TransformationController _transformationController =
       TransformationController();
@@ -43,14 +52,13 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
     _loadFilterPrefs();
     _unitHistoryProvider.startAutoRefresh();
 
-    // Start chat & HUD polling with unique match ID
+    // Start chat & HUD polling with unieke match ID en sync van event ids
     Future.microtask(() async {
-      // Import WTApiService here to avoid breaking existing providers
-      // (Assume you have a singleton or global instance, or use Provider if available)
       final WTApiService? api = _findApiService(context);
       if (api != null) {
         final matchId = DateTime.now().millisecondsSinceEpoch.toString();
         api.setCurrentMatchId(matchId);
+        await api.syncEventIds();
         api.startChatHudPolling();
       }
     });
@@ -235,6 +243,105 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
               flex: 4,
               child: LogFeedBox(),
             ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showDebugSheet,
+        child: const Icon(Icons.bug_report),
+        tooltip: 'Toon raw data debug',
+      ),
+    );
+  }
+}
+
+// Bottom sheet widget for live debug data
+class _LiveDebugDataSheet extends StatefulWidget {
+  const _LiveDebugDataSheet();
+
+  @override
+  State<_LiveDebugDataSheet> createState() => _LiveDebugDataSheetState();
+}
+
+class _LiveDebugDataSheetState extends State<_LiveDebugDataSheet> {
+  String? chatJson;
+  bool loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchChat();
+  }
+
+  Future<void> _fetchChat() async {
+    setState(() => loading = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final ip = prefs.getString('pc_ip') ?? '192.168.0.61';
+      final url = Uri.parse('http://$ip:8111/gamechat?lastId=0');
+      final resp = await http.get(url);
+      if (resp.statusCode == 200) {
+        setState(() => chatJson = resp.body);
+      } else {
+        setState(() => chatJson = 'HTTP ${resp.statusCode}: ${resp.reasonPhrase}');
+      }
+    } catch (e) {
+      setState(() => chatJson = 'Error: $e');
+    } finally {
+      setState(() => loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final gameData = context.watch<GameDataService>();
+    String prettyJson(Object? data) {
+      try {
+        return JsonEncoder.withIndent('  ').convert(data);
+      } catch (_) {
+        return data?.toString() ?? '';
+      }
+    }
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.8,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      builder: (ctx, scroll) => SingleChildScrollView(
+        controller: scroll,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Raw Data Debug', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _fetchChat,
+                  tooltip: 'Herlaad chat feed',
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text('Live /state:'),
+            SelectableText(prettyJson(gameData.stateJson)),
+            const SizedBox(height: 12),
+            Text('Live /map_info.json:'),
+            SelectableText(prettyJson(gameData.mapInfo)),
+            const SizedBox(height: 12),
+            Text('Live /map_obj.json:'),
+            SelectableText(prettyJson(gameData.mapObjects)),
+            const SizedBox(height: 12),
+            Text('Live /gamechat?lastId=0:'),
+            if (loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: CircularProgressIndicator(),
+              )
+            else
+              SelectableText(chatJson ?? 'No data'),
           ],
         ),
       ),

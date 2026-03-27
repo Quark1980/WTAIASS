@@ -94,7 +94,7 @@ class DatabaseHelper {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getLastMatchLogs({int limit = 5, String? matchId}) async {
+  Future<List<Map<String, dynamic>>> getLastMatchLogs({int limit = 10, String? matchId}) async {
     final dbClient = await db;
     final where = matchId != null ? 'WHERE match_id = ?' : '';
     final args = matchId != null ? [matchId] : [];

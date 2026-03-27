@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/database_helper.dart';
+import 'package:provider/provider.dart';
+import '../../services/wt_api_service.dart';
 
 class LogFeedBox extends StatefulWidget {
   const LogFeedBox({super.key});
@@ -10,14 +12,32 @@ class LogFeedBox extends StatefulWidget {
 
 class _LogFeedBoxState extends State<LogFeedBox> {
   List<Map<String, dynamic>> _logs = [];
+
+  WTApiService? _apiService;
+
   @override
   void initState() {
     super.initState();
+    // Delay to ensure context is available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _apiService = Provider.of<WTApiService>(context, listen: false);
+      _apiService?.addListener(_onApiUpdate);
+      _loadLogs();
+    });
+  }
+
+  void _onApiUpdate() {
     _loadLogs();
   }
 
+  @override
+  void dispose() {
+    _apiService?.removeListener(_onApiUpdate);
+    super.dispose();
+  }
+
   Future<void> _loadLogs() async {
-    final logs = await DatabaseHelper().getLastMatchLogs(limit: 5);
+    final logs = await DatabaseHelper().getLastMatchLogs(limit: 10);
     setState(() {
       _logs = logs;
     });

@@ -1,3 +1,4 @@
+library wt_api_service;
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -7,14 +8,53 @@ import 'database_helper.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
+
 class WTApiService extends ChangeNotifier {
   // For chat & HUD polling
   int _lastChatId = 0;
   int _lastHudId = 0;
+  int _lastDmgId = 0;
   String? _currentMatchId;
   Timer? _chatHudTimer;
+
   void setCurrentMatchId(String matchId) {
     _currentMatchId = matchId;
+  }
+
+  /// Sync de hoogste event/chat/damage id's bij match start zodat je geen oude logs krijgt
+  Future<void> syncEventIds() async {
+    try {
+      // Sync chat
+      final chatUrl = Uri.parse('http://$_ip:$_defaultPort/gamechat');
+      final chatResp = await http.get(chatUrl);
+      if (chatResp.statusCode == 200) {
+        final List<dynamic> data = json.decode(chatResp.body);
+        if (data.isNotEmpty) {
+          final maxId = data.map((e) => e['id'] ?? 0).fold<int>(0, (a, b) => a > b ? a : b);
+          _lastChatId = maxId;
+          print('[SYNC] _lastChatId set to $maxId');
+        }
+      }
+    } catch (e) {
+      print('[SYNC] Error syncing chat ids: $e');
+    }
+    try {
+      // Sync HUD
+      final hudUrl = Uri.parse('http://$_ip:$_defaultPort/hudmsg');
+      final hudResp = await http.get(hudUrl);
+      if (hudResp.statusCode == 200) {
+        final data = json.decode(hudResp.body);
+        final List<dynamic> huds = data['damage'] ?? [];
+        if (huds.isNotEmpty) {
+          final maxEvt = huds.map((e) => e['id'] ?? 0).fold<int>(0, (a, b) => a > b ? a : b);
+          _lastHudId = maxEvt;
+          _lastDmgId = maxEvt;
+          print('[SYNC] _lastHudId/_lastDmgId set to $maxEvt');
+        }
+      }
+    } catch (e) {
+      print('[SYNC] Error syncing hud ids: $e');
+    }
   }
 
   void startChatHudPolling() {
@@ -32,7 +72,7 @@ class WTApiService extends ChangeNotifier {
 
   Future<void> fetchChat() async {
     try {
-      final url = Uri.parse('http://$_ip:$_defaultPort/gamechat?lastEvt=$_lastChatId');
+      final url = Uri.parse('http://$_ip:$_defaultPort/gamechat?lastId=$_lastChatId');
       final resp = await http.get(url);
       if (resp.statusCode == 200) {
         final List<dynamic> data = json.decode(resp.body);
@@ -44,10 +84,13 @@ class WTApiService extends ChangeNotifier {
             final message = msg['msg'] ?? '';
             final sender = msg['sender'] ?? '';
             print('CHAT: $message');
-            await DatabaseHelper().insertLog('CHAT', message, matchId: _currentMatchId, sender: sender);
+            // Asynchroon loggen, blokkeer UI niet
+            Future(() => DatabaseHelper().insertLog('CHAT', message, matchId: _currentMatchId, sender: sender));
           }
           _lastChatId = maxId;
         }
+      } else if (resp.statusCode == 500) {
+        print('Server 500 error on gamechat, skipping this poll.');
       }
     } catch (e) {
       print('Error fetching chat: $e');
@@ -56,22 +99,28 @@ class WTApiService extends ChangeNotifier {
 
   Future<void> fetchHud() async {
     try {
-      final url = Uri.parse('http://$_ip:$_defaultPort/hudmsg?lastEvt=$_lastHudId');
+      final url = Uri.parse('http://$_ip:$_defaultPort/hudmsg?lastEvt=$_lastHudId&lastDmg=$_lastDmgId');
       final resp = await http.get(url);
       if (resp.statusCode == 200) {
         final data = json.decode(resp.body);
         final List<dynamic> huds = data['damage'] ?? [];
         if (huds.isNotEmpty) {
           int maxId = _lastHudId;
+          int maxDmg = _lastDmgId;
           for (final msg in huds) {
             final id = msg['id'] ?? 0;
             if (id > maxId) maxId = id;
+            if (id > maxDmg) maxDmg = id;
             final message = msg['msg'] ?? '';
             print('HUD: $message');
-            await DatabaseHelper().insertLog('HUD', message, matchId: _currentMatchId);
+            // Asynchroon loggen, blokkeer UI niet
+            Future(() => DatabaseHelper().insertLog('HUD', message, matchId: _currentMatchId));
           }
           _lastHudId = maxId;
+          _lastDmgId = maxDmg;
         }
+      } else if (resp.statusCode == 500) {
+        print('Server 500 error on hudmsg, skipping this poll.');
       }
     } catch (e) {
       print('Error fetching hud: $e');
