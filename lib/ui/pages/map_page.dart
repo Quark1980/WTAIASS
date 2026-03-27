@@ -8,6 +8,8 @@ import '../widgets/map_filter_menu.dart';
 import '../widgets/map_display.dart';
 
 import '../../logic/tracker_service.dart';
+import '../../services/live_feed_provider.dart';
+import '../widgets/live_feeds_box.dart';
 
 class MapPage extends StatelessWidget {
   const MapPage({super.key});
@@ -122,81 +124,99 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
       // Update tracker with latest map objects
       _tracker.updateUnits(gameData.mapObjects.cast<Map<String, dynamic>>());
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Live Tactical Map - WTAIASS'),
-        backgroundColor: Colors.black87,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_alt),
-            tooltip: 'Filter units',
-            onPressed: () async {
-              final newTypes = await showDialog<Set<String>>(
-                context: context,
-                builder: (ctx) => MapFilterMenu(
-                  allTypes: typesForFilter,
-                  selectedTypes: selectedTypes,
-                  onChanged: (types) {
-                    Navigator.of(ctx).pop(types);
-                  },
-                ),
-              );
-              if (newTypes != null) {
-                setState(() {
-                  selectedTypes = newTypes;
-                });
-                _saveFilterPrefs();
-              }
-            },
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: AnimatedBuilder(
-          animation: _unitHistoryProvider,
-          builder: (context, _) {
-            return InteractiveViewer(
-              minScale: 0.3,
-              maxScale: 10.0,
-              transformationController: _transformationController,
-              onInteractionUpdate: (details) {
-                final matrix = _transformationController.value;
-                final scale = (matrix.storage[0] + matrix.storage[5]) / 2.0;
-                setState(() {
-                  _currentScale = scale;
-                });
-              },
-              child: Container(
-                color: Colors.black,
-                child: MapDisplay(
-                  key: ValueKey(lastMapImageKey ??
-                      (gameData.mapInfo != null
-                          ? (gameData.mapInfo!['name'] ??
-                              gameData.mapInfo!['id'] ??
-                              DateTime.now().millisecondsSinceEpoch)
-                          : DateTime.now().millisecondsSinceEpoch)),
-                  imageUrl: gameData.getMapImageUrl(),
-                  aspectRatio: aspect,
-                  placeholderText: 'Minimap niet geladen',
-                  onReload: () {
-                    setState(() {
-                      lastMapImageKey =
-                          DateTime.now().millisecondsSinceEpoch.toString();
-                    });
-                  },
-                  overlay: CustomPaint(
-                    size: Size.infinite,
-                    painter: MapPainter(
-                      mapObjects: filteredObjects,
-                      mapInfo: gameData.mapInfo,
-                      zoomScale: _currentScale,
-                      unitHistory: _unitHistoryProvider.recentHistory,
+    return ChangeNotifierProvider(
+      create: (_) => LiveFeedProvider(),
+      child: Builder(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Live Tactical Map - WTAIASS'),
+            backgroundColor: Colors.black87,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.filter_alt),
+                tooltip: 'Filter units',
+                onPressed: () async {
+                  final newTypes = await showDialog<Set<String>>(
+                    context: context,
+                    builder: (ctx) => MapFilterMenu(
+                      allTypes: typesForFilter,
+                      selectedTypes: selectedTypes,
+                      onChanged: (types) {
+                        Navigator.of(ctx).pop(types);
+                      },
                     ),
+                  );
+                  if (newTypes != null) {
+                    setState(() {
+                      selectedTypes = newTypes;
+                    });
+                    _saveFilterPrefs();
+                  }
+                },
+              ),
+            ],
+          ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Kaart max 60% van het scherm
+                Flexible(
+                  flex: 6,
+                  child: AnimatedBuilder(
+                    animation: _unitHistoryProvider,
+                    builder: (context, _) {
+                      return InteractiveViewer(
+                        minScale: 0.3,
+                        maxScale: 10.0,
+                        transformationController: _transformationController,
+                        onInteractionUpdate: (details) {
+                          final matrix = _transformationController.value;
+                          final scale = (matrix.storage[0] + matrix.storage[5]) / 2.0;
+                          setState(() {
+                            _currentScale = scale;
+                          });
+                        },
+                        child: Container(
+                          color: Colors.black,
+                          child: MapDisplay(
+                            key: ValueKey(lastMapImageKey ??
+                                (gameData.mapInfo != null
+                                    ? (gameData.mapInfo!['name'] ??
+                                        gameData.mapInfo!['id'] ??
+                                        DateTime.now().millisecondsSinceEpoch)
+                                    : DateTime.now().millisecondsSinceEpoch)),
+                            imageUrl: gameData.getMapImageUrl(),
+                            aspectRatio: aspect,
+                            placeholderText: 'Minimap niet geladen',
+                            onReload: () {
+                              setState(() {
+                                lastMapImageKey =
+                                    DateTime.now().millisecondsSinceEpoch.toString();
+                              });
+                            },
+                            overlay: CustomPaint(
+                              size: Size.infinite,
+                              painter: MapPainter(
+                                mapObjects: filteredObjects,
+                                mapInfo: gameData.mapInfo,
+                                zoomScale: _currentScale,
+                                unitHistory: _unitHistoryProvider.recentHistory,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              ),
-            );
-          },
+                // Feeds onder de kaart, 40% van het scherm
+                Flexible(
+                  flex: 4,
+                  child: LiveFeedsBox(),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

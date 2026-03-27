@@ -35,20 +35,27 @@ Een modulaire Android-applicatie die als 'Tactical Advisor' fungeert tijdens War
 - **IDE:** VS Code
 - **AI Tools:** [Naam van je gekozen gratis service]
 
-## 🚀 Roadmap & Doelen
-...
+## 🚀 Roadmap & Doelen (Update 2026)
+
 - [x] **Fase 2: Visuele Basis**
-        - [x] Live Tactical Map module:
-            - Pixel-perfect rendering van map en units.
-            - Dynamische iconen, kleuren en richtingspijlen per unit.
-            - Realtime koppeling met War Thunder API (`/map_obj.json`, `/state`, `/map_info.json`).
-            - OverlayMenu en navigatie naar MapPage geïntegreerd.
-        - [x] Alle buildfouten opgelost, project bouwt en draait stabiel.
+    - [x] Live Tactical Map module:
+        - Pixel-perfect rendering van map en units.
+        - Dynamische iconen, kleuren, richtingspijlen per unit.
+        - Grid overlay exact geschaald naar in-game minimap.
+        - Afstand tot speler zichtbaar boven elke unit.
+        - Realtime koppeling met War Thunder API (`/map_obj.json`, `/state`, `/map_info.json`).
+        - OverlayMenu en navigatie naar MapPage geïntegreerd.
+        - Live HUD- en gamechat-feeds direct onder de kaart, real-time zichtbaar.
+    - [x] Alle buildfouten opgelost, project bouwt en draait stabiel.
 - [x] **Fase 1: Connectiviteit**
     - [x] Flutter-omgeving opzetten.
     - [/] Floating Menu voor IP-configuratie (In progress).
     - [x] Live Data Inspector (In progress).
-...
+
+## ✅ Status
+- Kaart, grid, unit-tracking, afstandsweergave en live feeds werken stabiel.
+- Provider-architectuur voor robuuste, real-time updates.
+- Zie README.md en instructions.md voor details en implementatie.
 
 ## 🔧 Componenten (Modulair)
 - **OverlayManager:** Beheert de zwevende knop en menu's.
