@@ -1,5 +1,8 @@
 # Gamechat
 
+**NOTE:** The chat log display is implemented in the app, but currently does not show any text in the UI. This is a known issue and will be addressed in a future update.
+# Gamechat
+
 - Retrieves data from game chat
 
 <br>

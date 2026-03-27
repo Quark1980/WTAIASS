@@ -2,12 +2,81 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../logger.dart';
+import 'database_helper.dart';
 
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
 class WTApiService extends ChangeNotifier {
+  // For chat & HUD polling
+  int _lastChatId = 0;
+  int _lastHudId = 0;
+  String? _currentMatchId;
+  Timer? _chatHudTimer;
+  void setCurrentMatchId(String matchId) {
+    _currentMatchId = matchId;
+  }
+
+  void startChatHudPolling() {
+    _chatHudTimer?.cancel();
+    _chatHudTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) async {
+      await fetchChat();
+      await fetchHud();
+    });
+  }
+
+  void stopChatHudPolling() {
+    _chatHudTimer?.cancel();
+    _chatHudTimer = null;
+  }
+
+  Future<void> fetchChat() async {
+    try {
+      final url = Uri.parse('http://$_ip:$_defaultPort/gamechat?lastEvt=$_lastChatId');
+      final resp = await http.get(url);
+      if (resp.statusCode == 200) {
+        final List<dynamic> data = json.decode(resp.body);
+        if (data.isNotEmpty) {
+          int maxId = _lastChatId;
+          for (final msg in data) {
+            final id = msg['id'] ?? 0;
+            if (id > maxId) maxId = id;
+            final message = msg['msg'] ?? '';
+            final sender = msg['sender'] ?? '';
+            print('CHAT: $message');
+            await DatabaseHelper().insertLog('CHAT', message, matchId: _currentMatchId, sender: sender);
+          }
+          _lastChatId = maxId;
+        }
+      }
+    } catch (e) {
+      print('Error fetching chat: $e');
+    }
+  }
+
+  Future<void> fetchHud() async {
+    try {
+      final url = Uri.parse('http://$_ip:$_defaultPort/hudmsg?lastEvt=$_lastHudId');
+      final resp = await http.get(url);
+      if (resp.statusCode == 200) {
+        final data = json.decode(resp.body);
+        final List<dynamic> huds = data['damage'] ?? [];
+        if (huds.isNotEmpty) {
+          int maxId = _lastHudId;
+          for (final msg in huds) {
+            final id = msg['id'] ?? 0;
+            if (id > maxId) maxId = id;
+            final message = msg['msg'] ?? '';
+            print('HUD: $message');
+            await DatabaseHelper().insertLog('HUD', message, matchId: _currentMatchId);
+          }
+          _lastHudId = maxId;
+        }
+      }
+    } catch (e) {
+      print('Error fetching hud: $e');
+    }
+  }
 
     /// Publieke helper om alle data opnieuw op te halen (voor debug refresh)
     Future<void> refreshAll() async {
@@ -75,25 +144,23 @@ class WTApiService extends ChangeNotifier {
     try {
       final url = Uri.parse('http://$_ip:$_defaultPort/map.img?gen=$_lastGen');
       final response = await http.get(url);
-      logger.i('[MAP IMAGE] Bytes received: ${response.bodyBytes.length}');
+      print('[MAP IMAGE] Bytes received: ${response.bodyBytes.length}');
       if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
         final bytes = response.bodyBytes;
         if (_lastImageBytes == null || !_listEquals(_lastImageBytes!, bytes)) {
           _lastImageBytes = List<int>.from(bytes);
           ui.decodeImageFromList(bytes, (ui.Image img) {
             mapImage = img;
-            logger.i(
-              'Kaart succesvol gedecodeerd: \u001b[32m${img.width}x${img.height}\u001b[0m',
-            );
+            print('Kaart succesvol gedecodeerd: ${img.width}x${img.height}');
             notifyListeners();
             if (onImageLoaded != null) onImageLoaded!();
           });
         }
       } else if (response.bodyBytes.isEmpty) {
-        logger.w('[MAP IMAGE] No image data received.');
+        print('[MAP IMAGE] No image data received.');
       }
     } catch (e) {
-      logger.e('[MAP IMAGE] Error: $e');
+      print('[MAP IMAGE] Error: $e');
     }
   }
 
@@ -145,9 +212,7 @@ class WTApiService extends ChangeNotifier {
       turretAngle = null;
     }
     if (mapObjects != null) {
-      logger.i(
-        'Aantal units gevonden: \u001b[32m${mapObjects!.length}\u001b[0m',
-      );
+      print('Aantal units gevonden: ${mapObjects!.length}');
     }
     lastConnectionOk = ok;
     lastError = ok ? null : error;
@@ -177,7 +242,7 @@ class WTApiService extends ChangeNotifier {
       }
     } catch (e) {
       if (onError != null) onError(e);
-      logger.e('API fetch error for $endpoint: $e');
+      print('API fetch error for $endpoint: $e');
     }
     return null;
   }
@@ -198,7 +263,7 @@ class WTApiService extends ChangeNotifier {
       }
     } catch (e) {
       if (onError != null) onError(e);
-      logger.e('API fetch error for $endpoint: $e');
+      print('API fetch error for $endpoint: $e');
     }
     return null;
   }

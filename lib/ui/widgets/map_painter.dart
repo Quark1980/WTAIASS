@@ -201,7 +201,7 @@ class MapPainter extends CustomPainter {
         // Omrekenen naar mapunits (afstand in 0..1 * mapWidth) en dan naar meters
         final distUnits = sqrt(dxNorm * dxNorm + dyNorm * dyNorm) * mapWidth;
         final distMeters = distUnits * metersPerUnit;
-        final distText = distMeters.toStringAsFixed(0) + ' m';
+        final distText = '${distMeters.toStringAsFixed(0)} m';
         final textSpan = TextSpan(
           text: distText,
           style: TextStyle(
@@ -220,6 +220,7 @@ class MapPainter extends CustomPainter {
       final String icon = (obj['icon'] ?? '').toString();
       final String type = (obj['type'] ?? '').toString();
       final double baseSize = 6.0 / zoomScale;
+      final double captureZoneSize = baseSize * 2;
       final double strokeW = 1.0 / zoomScale;
       final Paint outline = Paint()
         ..color = Colors.black
@@ -230,8 +231,8 @@ class MapPainter extends CustomPainter {
         ..style = PaintingStyle.fill;
 
       void drawCaptureZone() {
-        canvas.drawCircle(pos, baseSize / 2, fill);
-        canvas.drawCircle(pos, baseSize / 2, outline);
+        canvas.drawCircle(pos, captureZoneSize / 2, fill);
+        canvas.drawCircle(pos, captureZoneSize / 2, outline);
         String letter = '?';
         final iconVal = obj['icon'];
         if (iconVal is String && iconVal.isNotEmpty) {
@@ -239,7 +240,7 @@ class MapPainter extends CustomPainter {
         }
         final textSpan = TextSpan(
           text: letter,
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10 / zoomScale),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14 / zoomScale),
         );
         final tp = TextPainter(text: textSpan, textAlign: TextAlign.center, textDirection: TextDirection.ltr);
         tp.layout();
@@ -324,22 +325,9 @@ class MapPainter extends CustomPainter {
       }
 
       void drawPlayer() {
-        // Romp: pijl
-        final path = Path();
-        path.moveTo(pos.dx, pos.dy - baseSize / 2);
-        path.lineTo(pos.dx - baseSize / 3, pos.dy + baseSize / 2);
-        path.lineTo(pos.dx + baseSize / 3, pos.dy + baseSize / 2);
-        path.close();
-        canvas.drawPath(path, fill);
-        canvas.drawPath(path, outline);
-        // Koepel: cirkel
-        canvas.drawCircle(pos, baseSize * 0.2, fill);
-        canvas.drawCircle(pos, baseSize * 0.2, outline);
-        // Loop: lijn omhoog (meeschalen)
-        final loopPaint = Paint()
-          ..color = Colors.white
-          ..strokeWidth = strokeW;
-        canvas.drawLine(pos, Offset(pos.dx, pos.dy - baseSize * 0.9), loopPaint);
+        // Player as a filled circle with outline
+        canvas.drawCircle(pos, baseSize / 2, fill);
+        canvas.drawCircle(pos, baseSize / 2, outline);
       }
 
       // Icon logic

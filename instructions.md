@@ -108,6 +108,11 @@ The map and units must be 100% aligned. Do not proceed to AI features until this
 
 ### Live Feeds
 - HUD-berichten (`/hudmsg`) en gamechat (`/gamechat`) worden elke seconde gepolld.
+- **Let op:** De chat- en HUD-feed worden wel gelogd, maar de UI toont momenteel nog geen tekst onder de kaart. Dit is een bekende beperking en wordt in een volgende update opgelost.
+- Beide feeds worden in real time getoond in twee scrollbare boxen onder de kaart (zodra de bug is opgelost).
+- Placeholder-tekst zichtbaar als er geen berichten zijn.
+- Provider-architectuur zorgt voor automatische UI-updates bij nieuwe data.
+- HUD-berichten (`/hudmsg`) en gamechat (`/gamechat`) worden elke seconde gepolld.
 - Beide feeds worden in real time getoond in twee scrollbare boxen onder de kaart.
 - Placeholder-tekst zichtbaar als er geen berichten zijn.
 - Provider-architectuur zorgt voor automatische UI-updates bij nieuwe data.

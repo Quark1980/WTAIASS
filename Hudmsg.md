@@ -1,5 +1,8 @@
 # Hudmsg
 
+**NOTE:** The HUD log display is implemented in the app, but currently does not show any text in the UI. This is a known issue and will be addressed in a future update.
+# Hudmsg
+
 - very similar to gamechat.. instead of a list of dicts, its a dict with keys events and damage, events is always empty iirc, and damage is a list of dicts
 
 <br>
