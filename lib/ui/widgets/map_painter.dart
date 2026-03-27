@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 
 class MapPainter extends CustomPainter {
   final List<dynamic> mapObjects;
@@ -58,6 +59,48 @@ class MapPainter extends CustomPainter {
       ..strokeWidth = 1.5 / zoomScale
       ..color = Colors.black;
 
+    // Find player position (normalized)
+    Offset? playerPos;
+    if (mapObjects.isNotEmpty) {
+      for (final obj in mapObjects) {
+        final String icon = (obj['icon'] ?? '').toString();
+        if (icon == 'Player') {
+          final double? px = (obj['x'] as num?)?.toDouble();
+          final double? py = (obj['y'] as num?)?.toDouble();
+          if (px != null && py != null) {
+            playerPos = Offset(px, py);
+            break;
+          }
+        }
+      }
+    }
+
+    double mapWidth = 1.0;
+    double mapHeight = 1.0;
+    double normToMeters = 1.0;
+    if (mapInfo != null && mapInfo!['map_max'] != null && mapInfo!['map_min'] != null) {
+      final List<dynamic> max = mapInfo!['map_max'];
+      final List<dynamic> min = mapInfo!['map_min'];
+      if (max.length == 2 && min.length == 2) {
+        mapWidth = (max[0] as num).toDouble() - (min[0] as num).toDouble();
+        mapHeight = (max[1] as num).toDouble() - (min[1] as num).toDouble();
+        // Special case: testmap with grid_size 1600 = 200m, map_max 4096
+        if (mapWidth == 4096.0 && mapHeight == 4096.0 && mapInfo!['grid_size'] != null) {
+          final List<dynamic> gridSize = mapInfo!['grid_size'];
+          if (gridSize.length == 2 && gridSize[0] == 1600 && gridSize[1] == 1600) {
+            // 4096 units = 512m (because 1600 = 200m, so 4096/1600*200)
+            normToMeters = 512.0;
+          } else {
+            // fallback: use mapWidth as meters
+            normToMeters = mapWidth;
+          }
+        } else {
+          // fallback: use mapWidth as meters
+          normToMeters = mapWidth;
+        }
+      }
+    }
+
     for (var obj in mapObjects) {
       // Genormaliseerde x/y (0..1) naar canvas
       final double? x = (obj['x'] as num?)?.toDouble();
@@ -90,10 +133,32 @@ class MapPainter extends CustomPainter {
         }
       }
 
+      // --- Distance label logic ---
+      if (playerPos != null && (obj['icon'] ?? '') != 'Player') {
+        // Calculate normalized distance and convert to meters using normToMeters
+        final dxNorm = x - playerPos.dx;
+        final dyNorm = y - playerPos.dy;
+        final distNorm = sqrt(dxNorm * dxNorm + dyNorm * dyNorm);
+        final dist = distNorm * normToMeters;
+        final distText = dist.toStringAsFixed(0) + ' m';
+        final textSpan = TextSpan(
+          text: distText,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 8 / zoomScale,
+            fontWeight: FontWeight.w500,
+            shadows: [Shadow(blurRadius: 2, color: Colors.black, offset: Offset(0.5, 0.5))],
+          ),
+        );
+        final tp = TextPainter(text: textSpan, textAlign: TextAlign.center, textDirection: TextDirection.ltr);
+        tp.layout();
+        tp.paint(canvas, pos - Offset(tp.width / 2, 14 / zoomScale));
+      }
+
       // Tactical icon rendering
       final String icon = (obj['icon'] ?? '').toString();
       final String type = (obj['type'] ?? '').toString();
-      final double baseSize = 12.0 / zoomScale;
+      final double baseSize = 6.0 / zoomScale;
       final double strokeW = 1.0 / zoomScale;
       final Paint outline = Paint()
         ..color = Colors.black

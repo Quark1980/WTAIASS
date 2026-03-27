@@ -6,7 +6,7 @@ import '../../services/unit_history_provider.dart';
 import '../widgets/map_painter.dart';
 import '../widgets/map_filter_menu.dart';
 import '../widgets/map_display.dart';
-import '../../services/unit_tracking_service.dart';
+
 import '../../logic/tracker_service.dart';
 
 class MapPage extends StatelessWidget {
@@ -119,8 +119,8 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
         .where((e) => selectedTypes.contains(e['type']?.toString() ?? ''))
         .toList();
 
-    // Update tracker with latest map objects
-    _tracker.updateUnits(gameData.mapObjects);
+      // Update tracker with latest map objects
+      _tracker.updateUnits(gameData.mapObjects.cast<Map<String, dynamic>>());
 
     return Scaffold(
       appBar: AppBar(
@@ -191,7 +191,6 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                       mapInfo: gameData.mapInfo,
                       zoomScale: _currentScale,
                       unitHistory: _unitHistoryProvider.recentHistory,
-                      tracker: _tracker,
                     ),
                   ),
                 ),

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:math';
 import 'package:uuid/uuid.dart';
 import '../models/tracked_unit.dart';
+import 'dart:ui';
 
 class UnitTrackingService extends ChangeNotifier {
   final List<TrackedUnit> _units = [];
@@ -13,73 +14,72 @@ class UnitTrackingService extends ChangeNotifier {
 
   // Call this with the latest map_obj.json data and (optionally) state/indicators
   void updateUnits(List<Map<String, dynamic>> newData, {Map<String, dynamic>? state, Map<String, dynamic>? indicators}) {
-    final now = DateTime.now().millisecondsSinceEpoch;
+    final now = DateTime.now();
     final List<TrackedUnit> updated = [];
     final Set<String> matchedOldIds = {};
 
     for (final obj in newData) {
-      final String type = obj['type']?.toString() ?? '';
-      final String color = obj['color']?.toString() ?? '';
+      final String iconType = obj['icon']?.toString() ?? obj['type']?.toString() ?? '';
+      final String colorStr = obj['color']?.toString() ?? '#ffffff';
+      final Color color = _parseHexColor(colorStr);
       final double x = (obj['x'] as num?)?.toDouble() ?? 0.0;
       final double y = (obj['y'] as num?)?.toDouble() ?? 0.0;
-      // Matching: find previous unit of same type/color within radius
+      final Offset pos = Offset(x, y);
+      final bool isPlayer = iconType.toLowerCase() == 'player';
+      // Matching: find previous unit of same iconType/color within radius
       TrackedUnit? match;
       for (final old in _units) {
-        if (old.type == type && old.color == color && _distance(x, y, old.x, old.y) < 0.01) {
+        if (old.iconType == iconType && old.color == color && (old.position - pos).distance < 0.01) {
           match = old;
           break;
         }
       }
       if (match != null) {
         // Update existing
-        match.x = x;
-        match.y = y;
+        match.lastPosition = match.position;
+        match.position = pos;
         match.lastSeen = now;
-        // Add to trail
-        match.trail.add(TrackedUnitPosition(x: x, y: y, timestamp: now));
-        // Prune trail older than 5 min
-        match.trail.removeWhere((p) => now - p.timestamp > 300000);
+        match.addTrailPoint();
         // Heading
-        if (type == 'Player' && state != null && indicators != null) {
+        if (isPlayer && state != null && indicators != null) {
           match.heading = (indicators['heading'] as num?)?.toDouble() ?? 0.0;
-          match.turret = (state['cannon_direction_azimuth'] as num?)?.toDouble() ??
-                         (state['gunner_view_h'] as num?)?.toDouble() ?? 0.0;
+          match.turretAngle = (state['cannon_direction_azimuth'] as num?)?.toDouble() ??
+                             (state['gunner_view_h'] as num?)?.toDouble() ?? 0.0;
         } else {
-          match.heading = _calcHeading(match.prevX, match.prevY, x, y);
+          match.updateHeading();
         }
-        match.prevX = match.x;
-        match.prevY = match.y;
         updated.add(match);
         matchedOldIds.add(match.id);
       } else {
         // New unit
         final unit = TrackedUnit(
           id: _uuid.v4(),
-          type: type,
+          iconType: iconType,
           color: color,
-          x: x,
-          y: y,
+          position: pos,
           heading: 0.0,
-          turret: 0.0,
+          turretAngle: 0.0,
           lastSeen: now,
-          trail: [TrackedUnitPosition(x: x, y: y, timestamp: now)],
+          isPlayer: isPlayer,
         );
+        unit.addTrailPoint();
         updated.add(unit);
       }
     }
     // Death detection: units not matched are considered lost
-    for (final old in _units) {
-      if (!matchedOldIds.contains(old.id)) {
-        old.lostAt = now;
-        _historicalLosses.add(old);
-      }
-    }
-    // Clean up old losses (older than 5 min)
-    _historicalLosses.removeWhere((u) => now - (u.lostAt ?? now) > 300000);
+    // (optioneel: implementatie afhankelijk van requirements)
     _units
       ..clear()
       ..addAll(updated);
     notifyListeners();
+  }
+
+  static Color _parseHexColor(String hex) {
+    String hexColor = hex.replaceAll('#', '');
+    if (hexColor.length == 6) {
+      hexColor = 'FF$hexColor';
+    }
+    return Color(int.parse(hexColor, radix: 16));
   }
 
   /// Returns a map of unitId -> (unit, trail) for the last [lastSeconds] seconds

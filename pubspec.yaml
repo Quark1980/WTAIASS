@@ -15,6 +15,7 @@ dependencies:
   wakelock_plus: ^1.2.0
   sqflite: ^2.3.3
   path: ^1.9.0
+  uuid: ^4.5.3
 
 dev_dependencies:
   flutter_test:

@@ -13,7 +13,7 @@ import '../../models/tracked_unit_position.dart';
   final double? playerTurretAngle;
   final UnitTrackingService? tracker;
 
-  TacticalMapPainter({
+  MapPainter({
     this.mapImage,
     this.mapInfo,
     this.mapObj,
@@ -398,5 +398,5 @@ import '../../models/tracked_unit_position.dart';
 
 
   @override
-  bool shouldRepaint(TacticalMapPainter oldDelegate) => true;
+  bool shouldRepaint(MapPainter oldDelegate) => true;
 }
