@@ -4,12 +4,52 @@ class MapPainter extends CustomPainter {
   final List<dynamic> mapObjects;
   final Map<String, dynamic>? mapInfo;
   final double zoomScale;
+  final Map<String, List<Map<String, dynamic>>>? unitHistory;
 
-  MapPainter({required this.mapObjects, this.mapInfo, this.zoomScale = 1.0});
+  MapPainter({
+    required this.mapObjects,
+    this.mapInfo,
+    this.zoomScale = 1.0,
+    this.unitHistory,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     if (mapObjects.isEmpty) return;
+
+    // Draw fading route tails for each unit
+    if (unitHistory != null && mapInfo != null) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final fadeDuration = 300000; // 5 min in ms
+      for (final entry in unitHistory!.entries) {
+        final points = entry.value;
+        if (points.length < 2) continue;
+        Offset? last;
+        for (int i = 0; i < points.length; i++) {
+          final p = points[i];
+          final double? x = (p['x'] as num?)?.toDouble();
+          final double? y = (p['y'] as num?)?.toDouble();
+          if (x == null || y == null) continue;
+          final drawX = x * size.width;
+          final drawY = y * size.height;
+          final pos = Offset(drawX, drawY);
+          if (last != null) {
+            // Fade: newer segments more opaque
+            final t = (p['timestamp'] as int?) ?? now;
+            final age = now - t;
+            double alpha = 1.0 - (age / fadeDuration);
+            if (alpha < 0.05) alpha = 0.05;
+            if (alpha > 1.0) alpha = 1.0;
+            final paint = Paint()
+              ..color = Colors.white.withOpacity(alpha)
+              ..strokeWidth = 2.0 / zoomScale
+              ..style = PaintingStyle.stroke;
+            canvas.drawLine(last, pos, paint);
+          }
+          last = pos;
+        }
+      }
+    }
 
     final fillPaint = Paint()
       ..style = PaintingStyle.fill;

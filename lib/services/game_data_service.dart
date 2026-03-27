@@ -4,13 +4,31 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+
 import 'package:shared_preferences/shared_preferences.dart';
+import 'database_service.dart';
 
 
 
 
 /// Service voor ophalen en cachen van War Thunder map- en unitdata via de localhost API.
 class GameDataService extends ChangeNotifier {
+    // Icon mapping for unit types
+    static const Map<String, String> iconTypeMap = {
+      // Tanks
+      'tank': 'Medium Tank / MBT',
+      'heavy_tank': 'Heavy Tank',
+      'light_tank': 'Light Tank / IFV',
+      'tank_destroyer': 'TD / SPG',
+      'spaa': 'Anti-Aircraft',
+      // Aircraft
+      'fighter': 'Fighter',
+      'attacker': 'Attacker',
+      'bomber': 'Bomber',
+      'helicopter': 'Helicopter',
+    };
+
+    final UnitHistoryDatabase _historyDb = UnitHistoryDatabase();
   String _ip = '192.168.0.61'; // Default IP voor testen
   List<dynamic> _mapObjects = [];
   Map<String, dynamic>? _mapInfo;
@@ -101,11 +119,34 @@ class GameDataService extends ChangeNotifier {
     try {
       final response = await http.get(Uri.parse('http://$_ip:8111/map_obj.json'));
       if (response.statusCode == 200) {
-        _mapObjects = json.decode(response.body) as List<dynamic>;
+        final List<dynamic> rawList = json.decode(response.body) as List<dynamic>;
+        final now = DateTime.now().millisecondsSinceEpoch;
+        // Store all fields, categorize by icon, and save to DB
+        _mapObjects = rawList.map((obj) {
+          final map = Map<String, dynamic>.from(obj as Map);
+          // Categorize by icon
+          final icon = map['icon']?.toString() ?? '';
+          final typeName = iconTypeMap[icon] ?? icon;
+          map['unit_type'] = typeName;
+          // Save to DB with timestamp
+          final dbEntry = {
+            'unit_id': map['id']?.toString() ?? '',
+            'icon': icon,
+            'type': typeName,
+            'x': map['x'],
+            'y': map['y'],
+            'dx': map['dx'],
+            'dy': map['dy'],
+            'color': map['color'],
+            'timestamp': now,
+          };
+          _historyDb.insertUnitHistory(dbEntry);
+          return map;
+        }).toList();
       } else {
         _mapObjects = [];
       }
-    } catch (_) {
+    } catch (e) {
       _mapObjects = [];
     }
   }

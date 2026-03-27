@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../../services/game_data_service.dart';
+import '../../services/unit_history_provider.dart';
 import '../widgets/map_painter.dart';
 import '../widgets/map_filter_menu.dart';
 import '../widgets/map_display.dart';
@@ -21,6 +22,7 @@ class _MapPageWithFilter extends StatefulWidget {
 }
 
 class _MapPageWithFilterState extends State<_MapPageWithFilter> {
+      final UnitHistoryProvider _unitHistoryProvider = UnitHistoryProvider();
     final TransformationController _transformationController = TransformationController();
     double _currentScale = 1.0;
   Set<String> selectedTypes = {};
@@ -32,6 +34,7 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
     void initState() {
       super.initState();
       _loadFilterPrefs();
+      _unitHistoryProvider.loadRecentHistory();
     }
 
     Future<void> _loadFilterPrefs() async {
@@ -135,41 +138,45 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
         ],
       ),
       body: SafeArea(
-        child: InteractiveViewer(
-          minScale: 0.3,
-          maxScale: 10.0,
-          transformationController: _transformationController,
-          onInteractionUpdate: (details) {
-            final matrix = _transformationController.value;
-            // Schaal is matrix[0] (x) of matrix[3] (y), neem gemiddelde voor uniform scaling
-            final scale = (matrix.storage[0] + matrix.storage[5]) / 2.0;
-            setState(() {
-              _currentScale = scale;
-            });
-          },
-          child: Container(
-            color: Colors.black,
-            child: MapDisplay(
-              key: ValueKey(lastMapImageKey ?? (gameData.mapInfo != null ? (gameData.mapInfo!['name'] ?? gameData.mapInfo!['id'] ?? DateTime.now().millisecondsSinceEpoch) : DateTime.now().millisecondsSinceEpoch)),
-              imageUrl: gameData.getMapImageUrl(),
-              aspectRatio: aspect,
-              placeholderText: 'Minimap niet geladen',
-              onReload: () {
+        child: AnimatedBuilder(
+          animation: _unitHistoryProvider,
+          builder: (context, _) {
+            return InteractiveViewer(
+              minScale: 0.3,
+              maxScale: 10.0,
+              transformationController: _transformationController,
+              onInteractionUpdate: (details) {
+                final matrix = _transformationController.value;
+                final scale = (matrix.storage[0] + matrix.storage[5]) / 2.0;
                 setState(() {
-                  // Forceer unieke URL voor cache-busting
-                  lastMapImageKey = DateTime.now().millisecondsSinceEpoch.toString();
+                  _currentScale = scale;
                 });
               },
-              overlay: CustomPaint(
-                size: Size.infinite,
-                painter: MapPainter(
-                  mapObjects: filteredObjects,
-                  mapInfo: gameData.mapInfo,
-                  zoomScale: _currentScale,
+              child: Container(
+                color: Colors.black,
+                child: MapDisplay(
+                  key: ValueKey(lastMapImageKey ?? (gameData.mapInfo != null ? (gameData.mapInfo!['name'] ?? gameData.mapInfo!['id'] ?? DateTime.now().millisecondsSinceEpoch) : DateTime.now().millisecondsSinceEpoch)),
+                  imageUrl: gameData.getMapImageUrl(),
+                  aspectRatio: aspect,
+                  placeholderText: 'Minimap niet geladen',
+                  onReload: () {
+                    setState(() {
+                      lastMapImageKey = DateTime.now().millisecondsSinceEpoch.toString();
+                    });
+                  },
+                  overlay: CustomPaint(
+                    size: Size.infinite,
+                    painter: MapPainter(
+                      mapObjects: filteredObjects,
+                      mapInfo: gameData.mapInfo,
+                      zoomScale: _currentScale,
+                      unitHistory: _unitHistoryProvider.recentHistory,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
