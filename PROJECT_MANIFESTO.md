@@ -54,3 +54,17 @@ Een modulaire Android-applicatie die als 'Tactical Advisor' fungeert tijdens War
 - **OverlayManager:** Beheert de zwevende knop en menu's.
 - **ConfigService:** Slaat het IP-adres lokaal op de telefoon op.
 - **JSON-Formatter:** Vertaalt rauwe API-data naar een leesbare lijst voor de gebruiker.
+
+## 🛠️ Debug Log
+- [x] **Feature: Constant Icon Scaling**
+    - Probleem: Icons worden te groot bij inzoomen.
+    - Oplossing: Inverse scaling toegepast in CustomPainter via TransformationController.
+    - Status: Werkend.
+
+    ## 🧠 Intelligentie & Logica
+- [ ] **Unit Tracking (Spatial)**
+    - [ ] ID-loze units koppelen op basis van nabijheid.
+    - [ ] 'Lost Unit' detectie voor Kill Zones.
+- [ ] **Advanced Orientation**
+    - [ ] Hull heading berekening voor AI-units.
+    - [ ] Turret azimuth integratie voor de Speler (uit /indicators).

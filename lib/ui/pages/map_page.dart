@@ -6,6 +6,8 @@ import '../../services/unit_history_provider.dart';
 import '../widgets/map_painter.dart';
 import '../widgets/map_filter_menu.dart';
 import '../widgets/map_display.dart';
+import '../../services/unit_tracking_service.dart';
+import '../../logic/tracker_service.dart';
 
 class MapPage extends StatelessWidget {
   const MapPage({super.key});
@@ -22,35 +24,38 @@ class _MapPageWithFilter extends StatefulWidget {
 }
 
 class _MapPageWithFilterState extends State<_MapPageWithFilter> {
-      final UnitHistoryProvider _unitHistoryProvider = UnitHistoryProvider();
-    final TransformationController _transformationController = TransformationController();
-    double _currentScale = 1.0;
+  final UnitHistoryProvider _unitHistoryProvider = UnitHistoryProvider();
+  final TransformationController _transformationController =
+      TransformationController();
+  double _currentScale = 1.0;
+  final UnitTrackingService _tracker = UnitTrackingService();
   Set<String> selectedTypes = {};
   Set<String> knownTypes = {};
   String? lastMapId;
   int? lastMapGeneration;
   String? lastMapImageKey;
-    @override
-    void initState() {
-      super.initState();
-      _loadFilterPrefs();
-      _unitHistoryProvider.startAutoRefresh();
-    }
+  @override
+  void initState() {
+    super.initState();
+    _loadFilterPrefs();
+    _unitHistoryProvider.startAutoRefresh();
+  }
 
-    Future<void> _loadFilterPrefs() async {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getStringList('selectedTypes');
-      if (saved != null && saved.isNotEmpty) {
-        setState(() {
-          selectedTypes = saved.toSet();
-        });
-      }
+  Future<void> _loadFilterPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList('selectedTypes');
+    if (saved != null && saved.isNotEmpty) {
+      setState(() {
+        selectedTypes = saved.toSet();
+      });
     }
+  }
 
-    Future<void> _saveFilterPrefs() async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList('selectedTypes', selectedTypes.toList());
-    }
+  Future<void> _saveFilterPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('selectedTypes', selectedTypes.toList());
+  }
+
   // Fallback types uit MapObjects.md
   static const Set<String> fallbackTypes = {
     'airfield',
@@ -80,7 +85,8 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
     }
 
     // Forceer refresh van map image bij nieuwe match (nieuwe mapId of mapGeneration)
-    if (mapId != null && (mapId != lastMapId || mapGeneration != lastMapGeneration)) {
+    if (mapId != null &&
+        (mapId != lastMapId || mapGeneration != lastMapGeneration)) {
       lastMapId = mapId;
       lastMapGeneration = mapGeneration;
       // Unieke key voor MapDisplay zodat deze geforceerd ververst
@@ -88,7 +94,10 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
     }
 
     // Verzamel alle types uit de huidige mapObjects
-    final allTypes = gameData.mapObjects.map((e) => e['type']?.toString() ?? '').where((t) => t.isNotEmpty).toSet();
+    final allTypes = gameData.mapObjects
+        .map((e) => e['type']?.toString() ?? '')
+        .where((t) => t.isNotEmpty)
+        .toSet();
     // Onthoud alle bekende types (ook tussen matches)
     if (allTypes.isNotEmpty) {
       knownTypes.addAll(allTypes);
@@ -106,7 +115,12 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
       _saveFilterPrefs();
     }
     // Filter mapObjects
-    final filteredObjects = gameData.mapObjects.where((e) => selectedTypes.contains(e['type']?.toString() ?? '')).toList();
+    final filteredObjects = gameData.mapObjects
+        .where((e) => selectedTypes.contains(e['type']?.toString() ?? ''))
+        .toList();
+
+    // Update tracker with latest map objects
+    _tracker.updateUnits(gameData.mapObjects);
 
     return Scaffold(
       appBar: AppBar(
@@ -155,13 +169,19 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
               child: Container(
                 color: Colors.black,
                 child: MapDisplay(
-                  key: ValueKey(lastMapImageKey ?? (gameData.mapInfo != null ? (gameData.mapInfo!['name'] ?? gameData.mapInfo!['id'] ?? DateTime.now().millisecondsSinceEpoch) : DateTime.now().millisecondsSinceEpoch)),
+                  key: ValueKey(lastMapImageKey ??
+                      (gameData.mapInfo != null
+                          ? (gameData.mapInfo!['name'] ??
+                              gameData.mapInfo!['id'] ??
+                              DateTime.now().millisecondsSinceEpoch)
+                          : DateTime.now().millisecondsSinceEpoch)),
                   imageUrl: gameData.getMapImageUrl(),
                   aspectRatio: aspect,
                   placeholderText: 'Minimap niet geladen',
                   onReload: () {
                     setState(() {
-                      lastMapImageKey = DateTime.now().millisecondsSinceEpoch.toString();
+                      lastMapImageKey =
+                          DateTime.now().millisecondsSinceEpoch.toString();
                     });
                   },
                   overlay: CustomPaint(
@@ -171,6 +191,7 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                       mapInfo: gameData.mapInfo,
                       zoomScale: _currentScale,
                       unitHistory: _unitHistoryProvider.recentHistory,
+                      tracker: _tracker,
                     ),
                   ),
                 ),

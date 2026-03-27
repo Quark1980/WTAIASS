@@ -1,9 +1,8 @@
-import 'dart:ui' as ui;
-import 'package:flutter/material.dart';
-import 'dart:math' as math;
+
+import '../../logic/tracker_service.dart';
+import '../../models/tracked_unit_position.dart';
 
 
-class TacticalMapPainter extends CustomPainter {
   final ui.Image? mapImage;
   final Map<String, dynamic>? mapInfo;
   final Map<String, dynamic>? mapObj;
@@ -12,6 +11,7 @@ class TacticalMapPainter extends CustomPainter {
   final Map<String, Map<String, dynamic>>? deadUnits;
   final double? playerHeading;
   final double? playerTurretAngle;
+  final UnitTrackingService? tracker;
 
   TacticalMapPainter({
     this.mapImage,
@@ -22,6 +22,7 @@ class TacticalMapPainter extends CustomPainter {
     this.deadUnits,
     this.playerHeading,
     this.playerTurretAngle,
+    this.tracker,
   });
 
   @override
@@ -216,25 +217,28 @@ class TacticalMapPainter extends CustomPainter {
       return;
     }
     final units = mapObj!['units'] as List<dynamic>? ?? [];
-    // 4. Trails tekenen (voor elke unit)
-    if (liveTrails != null) {
-      for (final trail in liveTrails!.values) {
+    // 4. Trails tekenen (tracker_service)
+    if (tracker != null) {
+      final trails = tracker!.getTrailsForAllUnits();
+      for (final entry in trails.values) {
+        final unit = entry.unit;
+        final trail = entry.trail;
         if (trail.length < 2) continue;
         final path = Path();
         for (int i = 0; i < trail.length; i++) {
-          final Offset pos = _projectToMap(trail[i]['pos'], dstRect);
+          final p = trail[i];
+          final Offset pos = _projectToMap(p.position, dstRect);
           if (i == 0) {
             path.moveTo(pos.dx, pos.dy);
           } else {
             path.lineTo(pos.dx, pos.dy);
           }
         }
-        final Color color = trail.last['color'] ?? Colors.white;
         final double effectiveScale = 1.0 / zoomScale;
         canvas.drawPath(
           path,
           Paint()
-            ..color = color.withOpacity(0.35)
+            ..color = unit.color.withOpacity(0.35)
             ..strokeWidth = 2.0 * effectiveScale
             ..style = PaintingStyle.stroke,
         );
