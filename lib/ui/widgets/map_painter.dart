@@ -16,6 +16,75 @@ class MapPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // --- Grid overlay ---
+    if (mapInfo != null && mapInfo!['map_max'] != null && mapInfo!['map_min'] != null && mapInfo!['grid_steps'] != null) {
+      final List<dynamic> mapMax = mapInfo!['map_max'];
+      final List<dynamic> mapMin = mapInfo!['map_min'];
+      final List<dynamic> gridSteps = mapInfo!['grid_steps'];
+      if (mapMax.length == 2 && mapMin.length == 2 && gridSteps.length == 2) {
+        final double minX = (mapMin[0] as num).toDouble();
+        final double minY = (mapMin[1] as num).toDouble();
+        final double maxX = (mapMax[0] as num).toDouble();
+        final double maxY = (mapMax[1] as num).toDouble();
+        final double cellSizeX = (gridSteps[0] as num).toDouble();
+        final double cellSizeY = (gridSteps[1] as num).toDouble();
+        final int cols = ((maxX - minX) / cellSizeX).floor();
+        final int rows = ((maxY - minY) / cellSizeY).floor();
+        final double cellW = size.width / cols;
+        final double cellH = size.height / rows;
+        final Paint gridPaint = Paint()
+          ..color = Colors.white.withOpacity(0.25)
+          ..strokeWidth = 1.0;
+        // Verticale lijnen
+        for (int c = 0; c <= cols; c++) {
+          final x = c * cellW;
+          canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+        }
+        // Horizontale lijnen
+        for (int r = 0; r <= rows; r++) {
+          final y = r * cellH;
+          canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+        }
+        // Labels (A, B, C... en 1, 2, 3...)
+        final labelStyle = TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12 / zoomScale, fontWeight: FontWeight.bold, shadows: [Shadow(blurRadius: 2, color: Colors.black, offset: Offset(0.5, 0.5))]);
+        // Kolomlabels bovenaan
+        for (int c = 0; c < cols; c++) {
+          final label = (c + 1).toString();
+          final tp = TextPainter(text: TextSpan(text: label, style: labelStyle), textAlign: TextAlign.center, textDirection: TextDirection.ltr);
+          tp.layout();
+          final x = c * cellW + cellW / 2 - tp.width / 2;
+          tp.paint(canvas, Offset(x, 2));
+        }
+        // Rijlabels links
+        for (int r = 0; r < rows; r++) {
+          final label = String.fromCharCode(65 + r); // A=65
+          final tp = TextPainter(text: TextSpan(text: label, style: labelStyle), textAlign: TextAlign.center, textDirection: TextDirection.ltr);
+          tp.layout();
+          final y = r * cellH + cellH / 2 - tp.height / 2;
+          tp.paint(canvas, Offset(2, y));
+        }
+
+        // --- Grid size in meters linksonder ---
+        double metersPerUnit = 200.0 / 225.0;
+        String gridInfo = 'Gridcel: ${cellSizeX.toStringAsFixed(0)}x${cellSizeY.toStringAsFixed(0)} units = ${(cellSizeX*metersPerUnit).toStringAsFixed(0)}x${(cellSizeY*metersPerUnit).toStringAsFixed(0)} m';
+        final gridInfoStyle = TextStyle(
+          color: Colors.white.withOpacity(0.8),
+          fontSize: 14 / zoomScale,
+          fontWeight: FontWeight.bold,
+          shadows: [Shadow(blurRadius: 2, color: Colors.black, offset: Offset(1, 1))],
+        );
+        final gridInfoPainter = TextPainter(
+          text: TextSpan(text: gridInfo, style: gridInfoStyle),
+          textAlign: TextAlign.left,
+          textDirection: TextDirection.ltr,
+        );
+        gridInfoPainter.layout();
+        // 8px margin from left and bottom
+        final double margin = 8.0;
+        final Offset infoPos = Offset(margin, size.height - gridInfoPainter.height - margin);
+        gridInfoPainter.paint(canvas, infoPos);
+      }
+    }
     if (mapObjects.isEmpty) return;
 
     // Draw fading route tails for each unit
@@ -77,32 +146,23 @@ class MapPainter extends CustomPainter {
 
     double mapWidth = 1.0;
     double mapHeight = 1.0;
-    double normToMeters = 1.0;
+    double minX = 0.0, minY = 0.0, maxX = 1.0, maxY = 1.0;
+    double metersPerUnit = 200.0 / 225.0;
     if (mapInfo != null && mapInfo!['map_max'] != null && mapInfo!['map_min'] != null) {
       final List<dynamic> max = mapInfo!['map_max'];
       final List<dynamic> min = mapInfo!['map_min'];
       if (max.length == 2 && min.length == 2) {
-        mapWidth = (max[0] as num).toDouble() - (min[0] as num).toDouble();
-        mapHeight = (max[1] as num).toDouble() - (min[1] as num).toDouble();
-        // Special case: testmap with grid_size 1600 = 200m, map_max 4096
-        if (mapWidth == 4096.0 && mapHeight == 4096.0 && mapInfo!['grid_size'] != null) {
-          final List<dynamic> gridSize = mapInfo!['grid_size'];
-          if (gridSize.length == 2 && gridSize[0] == 1600 && gridSize[1] == 1600) {
-            // 4096 units = 512m (because 1600 = 200m, so 4096/1600*200)
-            normToMeters = 512.0;
-          } else {
-            // fallback: use mapWidth as meters
-            normToMeters = mapWidth;
-          }
-        } else {
-          // fallback: use mapWidth as meters
-          normToMeters = mapWidth;
-        }
+        minX = (min[0] as num).toDouble();
+        minY = (min[1] as num).toDouble();
+        maxX = (max[0] as num).toDouble();
+        maxY = (max[1] as num).toDouble();
+        mapWidth = maxX - minX;
+        mapHeight = maxY - minY;
       }
     }
 
     for (var obj in mapObjects) {
-      // Genormaliseerde x/y (0..1) naar canvas
+      // Gebruik direct de genormaliseerde x/y (0..1) uit de JSON
       final double? x = (obj['x'] as num?)?.toDouble();
       final double? y = (obj['y'] as num?)?.toDouble();
       if (x == null || y == null) continue;
@@ -135,12 +195,13 @@ class MapPainter extends CustomPainter {
 
       // --- Distance label logic ---
       if (playerPos != null && (obj['icon'] ?? '') != 'Player') {
-        // Calculate normalized distance and convert to meters using normToMeters
+        // playerPos is ook genormaliseerd
         final dxNorm = x - playerPos.dx;
         final dyNorm = y - playerPos.dy;
-        final distNorm = sqrt(dxNorm * dxNorm + dyNorm * dyNorm);
-        final dist = distNorm * normToMeters;
-        final distText = dist.toStringAsFixed(0) + ' m';
+        // Omrekenen naar mapunits (afstand in 0..1 * mapWidth) en dan naar meters
+        final distUnits = sqrt(dxNorm * dxNorm + dyNorm * dyNorm) * mapWidth;
+        final distMeters = distUnits * metersPerUnit;
+        final distText = distMeters.toStringAsFixed(0) + ' m';
         final textSpan = TextSpan(
           text: distText,
           style: TextStyle(
