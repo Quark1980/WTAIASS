@@ -274,11 +274,11 @@ class MapPainter extends CustomPainter {
         // Koepel: cirkel
         canvas.drawCircle(pos, baseSize * 0.2, fill);
         canvas.drawCircle(pos, baseSize * 0.2, outline);
-        // Loop: lijn omhoog
+        // Loop: lijn omhoog (meeschalen)
         final loopPaint = Paint()
           ..color = Colors.white
           ..strokeWidth = strokeW;
-        canvas.drawLine(pos, Offset(pos.dx, pos.dy - baseSize / 2), loopPaint);
+        canvas.drawLine(pos, Offset(pos.dx, pos.dy - baseSize * 0.9), loopPaint);
       }
 
       // Icon logic
@@ -307,12 +307,13 @@ class MapPainter extends CustomPainter {
         canvas.drawCircle(pos, r, outline);
       }
 
-      // Richtingspijl indien dx/dy aanwezig
+      // Richtingspijl indien dx/dy aanwezig (meeschalen met baseSize)
       if (obj['dx'] != null && obj['dy'] != null) {
         final dx = (obj['dx'] as num).toDouble();
         final dy = (obj['dy'] as num).toDouble();
         if (dx.abs() > 0.01 || dy.abs() > 0.01) {
-          final endPos = pos + Offset(dx * 15, dy * 15);
+          final arrowLength = baseSize * 2.5; // Schaalbaar met icoon
+          final endPos = pos + Offset(dx * arrowLength, dy * arrowLength);
           final arrowPaint = Paint()
             ..color = teamColor
             ..strokeWidth = 1.5 / zoomScale
