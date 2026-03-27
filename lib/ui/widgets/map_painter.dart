@@ -106,7 +106,11 @@ class MapPainter extends CustomPainter {
       void drawCaptureZone() {
         canvas.drawCircle(pos, baseSize / 2, fill);
         canvas.drawCircle(pos, baseSize / 2, outline);
-        final String letter = (obj['icon'] as String?)?.substring(0, 1).toUpperCase();
+        String letter = '?';
+        final iconVal = obj['icon'];
+        if (iconVal is String && iconVal.isNotEmpty) {
+          letter = iconVal.substring(0, 1).toUpperCase();
+        }
         final textSpan = TextSpan(
           text: letter,
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10 / zoomScale),

@@ -128,9 +128,18 @@ class GameDataService extends ChangeNotifier {
           final icon = map['icon']?.toString() ?? '';
           final typeName = iconTypeMap[icon] ?? icon;
           map['unit_type'] = typeName;
+          // Fallback for unit_id
+          String unitId = map['id']?.toString() ?? '';
+          if (unitId.isEmpty) {
+            final type = map['type']?.toString() ?? '';
+            final name = map['name']?.toString() ?? '';
+            final x = map['x']?.toString() ?? '';
+            final y = map['y']?.toString() ?? '';
+            unitId = '$type|$icon|$name|$x|$y';
+          }
           // Save to DB with timestamp
           final dbEntry = {
-            'unit_id': map['id']?.toString() ?? '',
+            'unit_id': unitId,
             'icon': icon,
             'type': typeName,
             'x': map['x'],
