@@ -34,7 +34,7 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
     void initState() {
       super.initState();
       _loadFilterPrefs();
-      _unitHistoryProvider.loadRecentHistory();
+      _unitHistoryProvider.startAutoRefresh();
     }
 
     Future<void> _loadFilterPrefs() async {

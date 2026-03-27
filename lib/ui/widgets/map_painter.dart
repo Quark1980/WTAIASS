@@ -90,15 +90,23 @@ class MapPainter extends CustomPainter {
         }
       }
 
-      // Capture point: vierkant met letter
-      if ((obj['type'] == 'capture_zone' || obj['type'] == 'zone') && obj['icon'] is String && (obj['icon'] as String).isNotEmpty) {
-        // Vierkant blijft 12px op scherm, compenseer voor zoomScale
-        final double sizeSq = 12 / zoomScale;
-        final rect = Rect.fromCenter(center: pos, width: sizeSq, height: sizeSq);
-        canvas.drawRect(rect, fillPaint);
-        canvas.drawRect(rect, strokePaint);
-        // Letter in het midden
-        final String letter = (obj['icon'] as String).substring(0, 1).toUpperCase();
+      // Tactical icon rendering
+      final String icon = (obj['icon'] ?? '').toString();
+      final String type = (obj['type'] ?? '').toString();
+      final double baseSize = 12.0 / zoomScale;
+      final double strokeW = 1.0 / zoomScale;
+      final Paint outline = Paint()
+        ..color = Colors.black
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeW;
+      final Paint fill = Paint()
+        ..color = teamColor
+        ..style = PaintingStyle.fill;
+
+      void drawCaptureZone() {
+        canvas.drawCircle(pos, baseSize / 2, fill);
+        canvas.drawCircle(pos, baseSize / 2, outline);
+        final String letter = (obj['icon'] as String?)?.substring(0, 1).toUpperCase();
         final textSpan = TextSpan(
           text: letter,
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10 / zoomScale),
@@ -106,12 +114,128 @@ class MapPainter extends CustomPainter {
         final tp = TextPainter(text: textSpan, textAlign: TextAlign.center, textDirection: TextDirection.ltr);
         tp.layout();
         tp.paint(canvas, pos - Offset(tp.width / 2, tp.height / 2));
+      }
+
+      void drawMediumTank() {
+        final rect = Rect.fromCenter(center: pos, width: baseSize, height: baseSize);
+        canvas.drawRect(rect, fill);
+        canvas.drawRect(rect, outline);
+      }
+
+      void drawHeavyTank() {
+        final rect = Rect.fromCenter(center: pos, width: baseSize, height: baseSize);
+        canvas.drawRect(rect, fill);
+        canvas.drawRect(rect, outline);
+        // Dikke verticale lijn
+        final p1 = Offset(pos.dx, pos.dy - baseSize / 2);
+        final p2 = Offset(pos.dx, pos.dy + baseSize / 2);
+        final thick = Paint()
+          ..color = Colors.white
+          ..strokeWidth = 2.0 / zoomScale;
+        canvas.drawLine(p1, p2, thick);
+      }
+
+      void drawLightTank() {
+        final rect = Rect.fromCenter(center: pos, width: baseSize, height: baseSize);
+        canvas.drawRect(rect, fill);
+        canvas.drawRect(rect, outline);
+        // Diagonale lijn
+        final p1 = Offset(pos.dx - baseSize / 2, pos.dy + baseSize / 2);
+        final p2 = Offset(pos.dx + baseSize / 2, pos.dy - baseSize / 2);
+        final diag = Paint()
+          ..color = Colors.white
+          ..strokeWidth = strokeW;
+        canvas.drawLine(p1, p2, diag);
+      }
+
+      void drawTankDestroyer() {
+        final path = Path();
+        path.moveTo(pos.dx - baseSize / 2, pos.dy - baseSize / 2);
+        path.lineTo(pos.dx + baseSize / 2, pos.dy - baseSize / 2);
+        path.lineTo(pos.dx, pos.dy + baseSize / 2);
+        path.close();
+        canvas.drawPath(path, fill);
+        canvas.drawPath(path, outline);
+      }
+
+      void drawSPAA() {
+        canvas.drawCircle(pos, baseSize / 2, fill);
+        canvas.drawCircle(pos, baseSize / 2, outline);
+        // Twee antennes
+        final ant1 = Offset(pos.dx - baseSize * 0.2, pos.dy - baseSize / 2);
+        final ant2 = Offset(pos.dx + baseSize * 0.2, pos.dy - baseSize / 2);
+        final top = Offset(pos.dx, pos.dy - baseSize / 2 - baseSize * 0.2);
+        final antPaint = Paint()
+          ..color = Colors.white
+          ..strokeWidth = strokeW;
+        canvas.drawLine(ant1, top, antPaint);
+        canvas.drawLine(ant2, top, antPaint);
+      }
+
+      void drawFighter() {
+        final path = Path();
+        path.moveTo(pos.dx, pos.dy - baseSize / 2);
+        path.lineTo(pos.dx - baseSize / 2, pos.dy + baseSize / 2);
+        path.lineTo(pos.dx + baseSize / 2, pos.dy + baseSize / 2);
+        path.close();
+        canvas.drawPath(path, fill);
+        canvas.drawPath(path, outline);
+      }
+
+      void drawBomber() {
+        final path = Path();
+        path.moveTo(pos.dx - baseSize / 2, pos.dy);
+        path.lineTo(pos.dx, pos.dy - baseSize / 2);
+        path.lineTo(pos.dx + baseSize / 2, pos.dy);
+        path.lineTo(pos.dx, pos.dy + baseSize / 2);
+        path.close();
+        canvas.drawPath(path, fill);
+        canvas.drawPath(path, outline);
+      }
+
+      void drawPlayer() {
+        // Romp: pijl
+        final path = Path();
+        path.moveTo(pos.dx, pos.dy - baseSize / 2);
+        path.lineTo(pos.dx - baseSize / 3, pos.dy + baseSize / 2);
+        path.lineTo(pos.dx + baseSize / 3, pos.dy + baseSize / 2);
+        path.close();
+        canvas.drawPath(path, fill);
+        canvas.drawPath(path, outline);
+        // Koepel: cirkel
+        canvas.drawCircle(pos, baseSize * 0.2, fill);
+        canvas.drawCircle(pos, baseSize * 0.2, outline);
+        // Loop: lijn omhoog
+        final loopPaint = Paint()
+          ..color = Colors.white
+          ..strokeWidth = strokeW;
+        canvas.drawLine(pos, Offset(pos.dx, pos.dy - baseSize / 2), loopPaint);
+      }
+
+      // Icon logic
+      if (type == 'capture_zone' || type == 'zone') {
+        drawCaptureZone();
+      } else if (icon == 'MediumTank') {
+        drawMediumTank();
+      } else if (icon == 'HeavyTank') {
+        drawHeavyTank();
+      } else if (icon == 'LightTank') {
+        drawLightTank();
+      } else if (icon == 'TankDestroyer') {
+        drawTankDestroyer();
+      } else if (icon == 'SPAA') {
+        drawSPAA();
+      } else if (icon == 'Fighter') {
+        drawFighter();
+      } else if (icon == 'Bomber') {
+        drawBomber();
+      } else if (icon == 'Player') {
+        drawPlayer();
       } else {
-        // Normale unit: altijd 5px op scherm, compenseer voor zoomScale
+        // fallback: cirkel
         final double r = 5 / zoomScale;
-        // Vulcirkel altijd met strokeWidth=0 (default), outline schaalt met zoom
-        canvas.drawCircle(pos, r, fillPaint);
-        canvas.drawCircle(pos, r, strokePaint);
+        canvas.drawCircle(pos, r, fill);
+        canvas.drawCircle(pos, r, outline);
       }
 
       // Richtingspijl indien dx/dy aanwezig

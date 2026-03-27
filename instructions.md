@@ -241,6 +241,35 @@ Implementeer de volledige "Tactical Suite" voor de War Thunder Overlay op basis 
    - DYNAMISCHE KLEUREN: Haal de kleur direct uit unit['color'] via `Color(int.parse(unit['color'].replaceFirst('#', '0xff')))`.
 
 3. ADVANCED RENDERING (APP-6 STANDAARD):
+
+/// War Thunder Map Object Icon Types
+/// Gebruik deze strings om te matchen met 'icon' uit map_obj.json
+abstract class WtIconTypes {
+  // --- Grondvoertuigen ---
+  static const String tank = 'tank';                 // Medium Tank / MBT
+  static const String heavyTank = 'heavy_tank';       // Heavy Tank
+  static const String lightTank = 'light_tank';       // Light Tank / IFV
+  static const String tankDestroyer = 'tank_destroyer'; // SPG / Jagdpanzer
+  static const String spaa = 'spaa';                 // Anti-Air (Luchtafweer)
+
+  // --- Luchtvaartuigen ---
+  static const String fighter = 'fighter';           // Jager
+  static const String attacker = 'attacker';         // Aanvalsplane / CAS
+  static const String bomber = 'bomber';             // Bommenwerper
+  static const String helicopter = 'helicopter';     // Helikopter
+
+  // --- Marine ---
+  static const String ship = 'ship';                 // Groot schip / Destroyer / Cruiser
+  static const String boat = 'boat';                 // Patrouilleboot / MTB
+
+  // --- Infrastructuur & Doelen ---
+  static const String airfield = 'airfield';         // Vliegveld (Heeft vaak 2 sets coördinaten)
+  static const String captureZone = 'capture_zone';   // A, B, of C punt
+  static const String bombTarget = 'bomb_target';     // Strategisch bombardeerdoel (Bases)
+
+  // --- Speler Specifiek ---
+  static const String player = 'Player';             // De speler zelf (Let op hoofdletter!)
+}
    - Implementeer een switch-case voor iconen:
      * 'Player': Blauwe pijl (hull heading) + Cirkel met lijn (turret direction).
      * 'HeavyTank': Vierkant met dikke verticale lijn in het midden.
