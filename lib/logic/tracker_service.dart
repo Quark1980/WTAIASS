@@ -18,6 +18,7 @@ class UnitTrackingService extends ChangeNotifier {
     final List<TrackedUnit> updated = [];
     final Set<String> matchedOldIds = {};
 
+    // 1. Update or add units
     for (final obj in newData) {
       final String iconType = obj['icon']?.toString() ?? obj['type']?.toString() ?? '';
       final String colorStr = obj['color']?.toString() ?? '#ffffff';
@@ -26,21 +27,20 @@ class UnitTrackingService extends ChangeNotifier {
       final double y = (obj['y'] as num?)?.toDouble() ?? 0.0;
       final Offset pos = Offset(x, y);
       final bool isPlayer = iconType.toLowerCase() == 'player';
-      // Matching: find previous unit of same iconType/color within radius
       TrackedUnit? match;
       for (final old in _units) {
-        if (old.iconType == iconType && old.color == color && (old.position - pos).distance < 0.01) {
+        if (!old.isDead && old.iconType == iconType && old.color == color && (old.position - pos).distance < 0.01) {
           match = old;
           break;
         }
       }
       if (match != null) {
-        // Update existing
         match.lastPosition = match.position;
         match.position = pos;
         match.lastSeen = now;
+        match.isDead = false;
+        match.timeOfDeath = null;
         match.addTrailPoint();
-        // Heading
         if (isPlayer && state != null && indicators != null) {
           match.heading = (indicators['heading'] as num?)?.toDouble() ?? 0.0;
           match.turretAngle = (state['cannon_direction_azimuth'] as num?)?.toDouble() ??
@@ -51,7 +51,6 @@ class UnitTrackingService extends ChangeNotifier {
         updated.add(match);
         matchedOldIds.add(match.id);
       } else {
-        // New unit
         final unit = TrackedUnit(
           id: _uuid.v4(),
           iconType: iconType,
@@ -61,13 +60,30 @@ class UnitTrackingService extends ChangeNotifier {
           turretAngle: 0.0,
           lastSeen: now,
           isPlayer: isPlayer,
+          isDead: false,
+          timeOfDeath: null,
         );
         unit.addTrailPoint();
         updated.add(unit);
       }
     }
-    // Death detection: units not matched are considered lost
-    // (optioneel: implementatie afhankelijk van requirements)
+
+    // 2. Mark unmatched units as dead (soft delete)
+    for (final old in _units) {
+      if (!matchedOldIds.contains(old.id) && !old.isDead) {
+        old.isDead = true;
+        old.timeOfDeath = now;
+        updated.add(old);
+      } else if (matchedOldIds.contains(old.id) && old.isDead) {
+        // Revive if reappeared
+        old.isDead = false;
+        old.timeOfDeath = null;
+      }
+    }
+
+    // 3. Remove units dead for more than 5 minutes
+    updated.removeWhere((u) => u.isDead && u.timeOfDeath != null && now.difference(u.timeOfDeath!).inMinutes >= 5);
+
     _units
       ..clear()
       ..addAll(updated);

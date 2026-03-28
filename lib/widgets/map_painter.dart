@@ -29,7 +29,7 @@ import '../../models/tracked_unit_position.dart';
   void paint(Canvas canvas, Size size) {
     // --- Local helpers at the top ---
     /// Project War Thunder map coordinates (ux, uy) to screen coordinates (pixel-perfect, y-flip)
-    Offset _projectToMap(Offset pos, Rect dstRect) {
+    Offset projectToMap(Offset pos, Rect dstRect) {
       // Requires mapInfo with mapMaxX and mapMaxY
       if (mapInfo == null) return Offset.zero;
       final double ux = pos.dx;
@@ -42,7 +42,7 @@ import '../../models/tracked_unit_position.dart';
       double drawY = dstRect.top + (yRatio * dstRect.height);
       return Offset(drawX, drawY);
     }
-    void _drawSkull(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
+    void drawSkull(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
       final double r = 4.5 * effectiveScale;
       final double stroke = 1.1 * effectiveScale;
       canvas.drawCircle(pos, r, Paint()
@@ -56,14 +56,14 @@ import '../../models/tracked_unit_position.dart';
         ..color = color
         ..strokeWidth = stroke);
     }
-    void _drawMediumTank(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
+    void drawMediumTank(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
       final double size = 5.0 * effectiveScale;
       final double stroke = 1.0 * effectiveScale;
       final rect = Rect.fromCenter(center: pos, width: size, height: size);
       canvas.drawRect(rect, Paint()..color = color..style = PaintingStyle.fill);
       canvas.drawRect(rect, Paint()..color = Colors.black..style = PaintingStyle.stroke..strokeWidth = stroke);
     }
-    void _drawHeavyTank(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
+    void drawHeavyTank(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
       final double size = 5.0 * effectiveScale;
       final double stroke = 1.0 * effectiveScale;
       final rect = Rect.fromCenter(center: pos, width: size, height: size);
@@ -75,7 +75,7 @@ import '../../models/tracked_unit_position.dart';
         Paint()..color = Colors.black..strokeWidth = stroke * 1.2,
       );
     }
-    void _drawLightTank(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
+    void drawLightTank(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
       final double size = 5.0 * effectiveScale;
       final double stroke = 1.0 * effectiveScale;
       final rect = Rect.fromCenter(center: pos, width: size, height: size);
@@ -87,7 +87,7 @@ import '../../models/tracked_unit_position.dart';
         Paint()..color = Colors.black..strokeWidth = stroke,
       );
     }
-    void _drawTankDestroyer(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
+    void drawTankDestroyer(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
       final double size = 5.0 * effectiveScale;
       final double stroke = 1.0 * effectiveScale;
       final path = Path();
@@ -98,7 +98,7 @@ import '../../models/tracked_unit_position.dart';
       canvas.drawPath(path, Paint()..color = color..style = PaintingStyle.fill);
       canvas.drawPath(path, Paint()..color = Colors.black..style = PaintingStyle.stroke..strokeWidth = stroke);
     }
-    void _drawSPAA(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
+    void drawSPAA(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
       final double r = 3.5 * effectiveScale;
       final double stroke = 1.0 * effectiveScale;
       canvas.drawCircle(pos, r, Paint()..color = color..style = PaintingStyle.fill);
@@ -112,7 +112,7 @@ import '../../models/tracked_unit_position.dart';
         );
       }
     }
-    void _drawFighter(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
+    void drawFighter(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
       final double size = 6.0 * effectiveScale;
       final double stroke = 1.0 * effectiveScale;
       final path = Path();
@@ -123,7 +123,7 @@ import '../../models/tracked_unit_position.dart';
       canvas.drawPath(path, Paint()..color = color..style = PaintingStyle.fill);
       canvas.drawPath(path, Paint()..color = Colors.black..style = PaintingStyle.stroke..strokeWidth = stroke);
     }
-    void _drawBomber(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
+    void drawBomber(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
       final double w = 8.0 * effectiveScale;
       final double h = 3.0 * effectiveScale;
       final double stroke = 1.0 * effectiveScale;
@@ -133,7 +133,7 @@ import '../../models/tracked_unit_position.dart';
       canvas.drawLine(Offset(rect.left, pos.dy), Offset(rect.right, pos.dy), Paint()..color = Colors.black..strokeWidth = stroke * 1.2);
       canvas.drawLine(pos, Offset(pos.dx, pos.dy - h / 2), Paint()..color = Colors.black..strokeWidth = stroke);
     }
-    void _drawCaptureZone(Canvas canvas, Offset pos, String label, Color color, {double effectiveScale = 1.0}) {
+    void drawCaptureZone(Canvas canvas, Offset pos, String label, Color color, {double effectiveScale = 1.0}) {
       final double r = 6.0 * effectiveScale;
       final double stroke = 1.0 * effectiveScale;
       canvas.drawCircle(pos, r, Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = stroke);
@@ -152,7 +152,7 @@ import '../../models/tracked_unit_position.dart';
       textPainter.paint(canvas, pos - Offset(textPainter.width / 2, textPainter.height / 2));
       canvas.drawCircle(pos, r, Paint()..color = Colors.black..style = PaintingStyle.stroke..strokeWidth = stroke * 0.7);
     }
-    void _drawAirfield(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
+    void drawAirfield(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
       final double w = 10.0 * effectiveScale;
       final double h = 3.0 * effectiveScale;
       final double stroke = 1.0 * effectiveScale;
@@ -160,14 +160,14 @@ import '../../models/tracked_unit_position.dart';
       canvas.drawRect(rect, Paint()..color = color.withOpacity(0.2)..style = PaintingStyle.fill);
       canvas.drawRect(rect, Paint()..color = Colors.black..style = PaintingStyle.stroke..strokeWidth = stroke);
     }
-    Color _parseHexColor(String hex) {
+    Color parseHexColor(String hex) {
       String hexColor = hex.replaceAll('#', '');
       if (hexColor.length == 6) {
         hexColor = 'FF$hexColor';
       }
       return Color(int.parse(hexColor, radix: 16));
     }
-    void _drawTurret(Canvas canvas, Offset pos, double heading, double turretAngle, {double effectiveScale = 1.0}) {
+    void drawTurret(Canvas canvas, Offset pos, double heading, double turretAngle, {double effectiveScale = 1.0}) {
       final double turretRadius = 3.5 * effectiveScale;
       final double strokeWidth = 0.7 * effectiveScale;
       canvas.drawCircle(pos, turretRadius, Paint()
@@ -227,7 +227,7 @@ import '../../models/tracked_unit_position.dart';
         final path = Path();
         for (int i = 0; i < trail.length; i++) {
           final p = trail[i];
-          final Offset pos = _projectToMap(p.position, dstRect);
+          final Offset pos = projectToMap(p.position, dstRect);
           if (i == 0) {
             path.moveTo(pos.dx, pos.dy);
           } else {
@@ -249,13 +249,13 @@ import '../../models/tracked_unit_position.dart';
       final now = DateTime.now().millisecondsSinceEpoch;
       for (final entry in deadUnits!.entries) {
         final data = entry.value;
-        final Offset pos = _projectToMap(data['pos'], dstRect);
+        final Offset pos = projectToMap(data['pos'], dstRect);
         final Color color = (data['color'] as Color?) ?? Colors.white;
         final int timestamp = data['timestamp'] as int? ?? 0;
         final double t = ((now - timestamp) / 4000.0).clamp(0.0, 1.0);
         final double alpha = 1.0 - t;
         if (alpha <= 0.01) continue;
-        _drawSkull(canvas, pos, color.withOpacity(alpha), effectiveScale: 1.0 / zoomScale);
+        drawSkull(canvas, pos, color.withOpacity(alpha), effectiveScale: 1.0 / zoomScale);
       }
     }
     // 6. Afstandstekst tonen bij units (behalve speler)
@@ -264,7 +264,7 @@ import '../../models/tracked_unit_position.dart';
       final String type = unit['type']?.toString() ?? '';
       final String icon = unit['icon']?.toString() ?? '';
       if (type == 'steerable' || type == 'player' || icon == 'Player') {
-        playerPos = _projectToMap(Offset((unit['x'] as num?)?.toDouble() ?? 0.0, (unit['y'] as num?)?.toDouble() ?? 0.0), dstRect);
+        playerPos = projectToMap(Offset((unit['x'] as num?)?.toDouble() ?? 0.0, (unit['y'] as num?)?.toDouble() ?? 0.0), dstRect);
         break;
       }
     }
@@ -273,10 +273,10 @@ import '../../models/tracked_unit_position.dart';
         final String type = unit['type']?.toString() ?? '';
         final String icon = unit['icon']?.toString() ?? '';
         if (type == 'steerable' || type == 'player' || icon == 'Player') continue;
-        final Offset pos = _projectToMap(Offset((unit['x'] as num?)?.toDouble() ?? 0.0, (unit['y'] as num?)?.toDouble() ?? 0.0), dstRect);
+        final Offset pos = projectToMap(Offset((unit['x'] as num?)?.toDouble() ?? 0.0, (unit['y'] as num?)?.toDouble() ?? 0.0), dstRect);
         final double dist = (playerPos - pos).distance;
         final double effectiveScale = 1.0 / zoomScale;
-        final String distText = dist.toStringAsFixed(0) + 'm';
+        final String distText = '${dist.toStringAsFixed(0)}m';
         final textPainter = TextPainter(
           text: TextSpan(
             text: distText,
@@ -308,7 +308,7 @@ import '../../models/tracked_unit_position.dart';
       if (type == 'steerable' || type == 'player' || icon == 'Player') {
         color = Colors.blue;
       } else if (unit['color'] != null && unit['color'] is String && (unit['color'] as String).startsWith('#')) {
-        color = _parseHexColor(unit['color'] as String);
+        color = parseHexColor(unit['color'] as String);
       } else if (side == 'friend') {
         color = Colors.green;
       } else {
@@ -316,31 +316,39 @@ import '../../models/tracked_unit_position.dart';
       }
       final Offset pos = Offset(drawX, drawY);
       final double effectiveScale = 1.0 / zoomScale;
+
+      // Draw a cross/skull if the unit is dead
+      final bool isDead = unit['isDead'] == true;
+      if (isDead) {
+        drawSkull(canvas, pos, color, effectiveScale: effectiveScale);
+        continue;
+      }
+
       if (type == 'steerable' || type == 'player' || icon == 'Player') {
         final double hullAngle = playerHeading ?? angle ?? 0.0;
         _drawArrow(canvas, pos, hullAngle, color, effectiveScale: effectiveScale);
         if (playerTurretAngle != null && playerHeading != null) {
-          _drawTurret(canvas, pos, playerHeading!, playerTurretAngle!, effectiveScale: effectiveScale);
+          drawTurret(canvas, pos, playerHeading!, playerTurretAngle!, effectiveScale: effectiveScale);
         }
       } else if (icon == 'MediumTank') {
-        _drawMediumTank(canvas, pos, color, effectiveScale: effectiveScale);
+        drawMediumTank(canvas, pos, color, effectiveScale: effectiveScale);
       } else if (icon == 'HeavyTank') {
-        _drawHeavyTank(canvas, pos, color, effectiveScale: effectiveScale);
+        drawHeavyTank(canvas, pos, color, effectiveScale: effectiveScale);
       } else if (icon == 'LightTank') {
-        _drawLightTank(canvas, pos, color, effectiveScale: effectiveScale);
+        drawLightTank(canvas, pos, color, effectiveScale: effectiveScale);
       } else if (icon == 'TankDestroyer') {
-        _drawTankDestroyer(canvas, pos, color, effectiveScale: effectiveScale);
+        drawTankDestroyer(canvas, pos, color, effectiveScale: effectiveScale);
       } else if (icon == 'SPAA') {
-        _drawSPAA(canvas, pos, color, effectiveScale: effectiveScale);
+        drawSPAA(canvas, pos, color, effectiveScale: effectiveScale);
       } else if (icon == 'Fighter') {
-        _drawFighter(canvas, pos, color, effectiveScale: effectiveScale);
+        drawFighter(canvas, pos, color, effectiveScale: effectiveScale);
       } else if (icon == 'Bomber') {
-        _drawBomber(canvas, pos, color, effectiveScale: effectiveScale);
+        drawBomber(canvas, pos, color, effectiveScale: effectiveScale);
       } else if (icon == 'capture_zone') {
-        _drawCaptureZone(canvas, pos, unit['name']?.toString() ?? '', color, effectiveScale: effectiveScale);
+        drawCaptureZone(canvas, pos, unit['name']?.toString() ?? '', color, effectiveScale: effectiveScale);
       } else if (icon == 'none') {
         if (type == 'airfield') {
-          _drawAirfield(canvas, pos, color, effectiveScale: effectiveScale);
+          drawAirfield(canvas, pos, color, effectiveScale: effectiveScale);
         } else {
           _drawUnitCircle(canvas, pos, color, effectiveScale: effectiveScale);
         }

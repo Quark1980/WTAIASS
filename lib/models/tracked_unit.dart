@@ -20,6 +20,9 @@ class TrackedUnit {
   DateTime lastSeen;         // Timestamp van de laatste succesvolle poll
   bool isPlayer;             // Is dit 'icon: Player'?
 
+  bool isDead;               // Soft delete: true als unit dood is
+  DateTime? timeOfDeath;     // Tijdstip van overlijden
+
   // Trail van posities (voor route-visualisatie)
   final List<TrackedUnitTrailPoint> trail;
 
@@ -33,6 +36,8 @@ class TrackedUnit {
     this.turretAngle = 0.0,
     required this.lastSeen,
     this.isPlayer = false,
+    this.isDead = false,
+    this.timeOfDeath,
     List<TrackedUnitTrailPoint>? trail,
   }) : trail = trail ?? [];
 
