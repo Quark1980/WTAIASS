@@ -42,6 +42,7 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
   double _currentScale = 1.0;
   final UnitTrackingService _tracker = UnitTrackingService();
   Set<String> selectedTypes = {};
+  bool _filtersLoaded = false;
   Set<String> knownTypes = {};
   String? lastMapId;
   int? lastMapGeneration;
@@ -52,28 +53,17 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
     _loadFilterPrefs();
     _unitHistoryProvider.startAutoRefresh();
 
-    // Start chat & HUD polling with unieke match ID en sync van event ids
+    // Start chat & HUD polling met Provider WTApiService
     Future.microtask(() async {
-      final WTApiService? api = _findApiService(context);
-      if (api != null) {
-        final matchId = DateTime.now().millisecondsSinceEpoch.toString();
-        api.setCurrentMatchId(matchId);
-        await api.syncEventIds();
-        api.startChatHudPolling();
-      }
+      final api = Provider.of<WTApiService>(context, listen: false);
+      final matchId = DateTime.now().millisecondsSinceEpoch.toString();
+      api.setCurrentMatchId(matchId);
+      await api.syncEventIds();
+      api.startChatHudPolling();
     });
   }
 
-  WTApiService? _findApiService(BuildContext context) {
-    try {
-      // If you use Provider for WTApiService, use this:
-      // return Provider.of<WTApiService>(context, listen: false);
-      // Otherwise, return your singleton/global instance here:
-      return WTApiService();
-    } catch (_) {
-      return null;
-    }
-  }
+  // WTApiService wordt nu via Provider gebruikt, deze helper is niet meer nodig.
 
   Future<void> _loadFilterPrefs() async {
     final prefs = await SharedPreferences.getInstance();
@@ -81,6 +71,11 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
     if (saved != null && saved.isNotEmpty) {
       setState(() {
         selectedTypes = saved.toSet();
+        _filtersLoaded = true;
+      });
+    } else {
+      setState(() {
+        _filtersLoaded = true;
       });
     }
   }
@@ -103,6 +98,12 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_filtersLoaded) {
+      // Wait for filter preferences to load before building UI
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     final gameData = context.watch<GameDataService>();
     final mapInfo = gameData.mapInfo;
     double aspect = 1.0;
@@ -142,12 +143,8 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
       ...allTypes,
       ...fallbackTypes,
     };
-    // Init: als nog geen selectie, alles aan
-    if (selectedTypes.isEmpty && typesForFilter.isNotEmpty) {
-      selectedTypes = Set<String>.from(typesForFilter);
-      // Sla default selectie ook meteen op
-      _saveFilterPrefs();
-    }
+    // Init: als nog geen selectie, alles aan, maar alleen als filters nog niet geladen zijn (eerste keer)
+    // (No longer needed, handled in _loadFilterPrefs)
     // Filter mapObjects
     final filteredObjects = gameData.mapObjects
         .where((e) => selectedTypes.contains(e['type']?.toString() ?? ''))
@@ -170,9 +167,6 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                 builder: (ctx) => MapFilterMenu(
                   allTypes: typesForFilter,
                   selectedTypes: selectedTypes,
-                  onChanged: (types) {
-                    Navigator.of(ctx).pop(types);
-                  },
                 ),
               );
               if (newTypes != null) {
@@ -248,8 +242,8 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showDebugSheet,
-        child: const Icon(Icons.bug_report),
         tooltip: 'Toon raw data debug',
+        child: const Icon(Icons.bug_report),
       ),
     );
   }

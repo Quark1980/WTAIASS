@@ -1,4 +1,4 @@
-library wt_api_service;
+library;
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -9,23 +9,32 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
 
+
 class WTApiService extends ChangeNotifier {
   // For chat & HUD polling
-  int _lastChatId = 0;
-  int _lastHudId = 0;
-  int _lastDmgId = 0;
+  int _lastChatId = -1;
+  int _lastHudId = -1;
+  int _lastDmgId = -1;
   String? _currentMatchId;
-  Timer? _chatHudTimer;
+  Timer? _pollTimer;
+  String? _savedIp;
+
 
   void setCurrentMatchId(String matchId) {
     _currentMatchId = matchId;
   }
 
+  Future<void> _loadSavedIp() async {
+    final prefs = await SharedPreferences.getInstance();
+    _savedIp = prefs.getString('pc_ip') ?? _defaultIp;
+  }
+
   /// Sync de hoogste event/chat/damage id's bij match start zodat je geen oude logs krijgt
   Future<void> syncEventIds() async {
+    await _loadSavedIp();
     try {
       // Sync chat
-      final chatUrl = Uri.parse('http://$_ip:$_defaultPort/gamechat');
+      final chatUrl = Uri.parse('http://${_savedIp ?? _ip}:$_defaultPort/gamechat');
       final chatResp = await http.get(chatUrl);
       if (chatResp.statusCode == 200) {
         final List<dynamic> data = json.decode(chatResp.body);
@@ -40,7 +49,7 @@ class WTApiService extends ChangeNotifier {
     }
     try {
       // Sync HUD
-      final hudUrl = Uri.parse('http://$_ip:$_defaultPort/hudmsg');
+      final hudUrl = Uri.parse('http://${_savedIp ?? _ip}:$_defaultPort/hudmsg');
       final hudResp = await http.get(hudUrl);
       if (hudResp.statusCode == 200) {
         final data = json.decode(hudResp.body);
@@ -57,18 +66,85 @@ class WTApiService extends ChangeNotifier {
     }
   }
 
+
   void startChatHudPolling() {
-    _chatHudTimer?.cancel();
-    _chatHudTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) async {
-      await fetchChat();
-      await fetchHud();
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(milliseconds: 500), (_) async {
+      await fetchChatMessages();
+      await fetchHudMessages();
     });
   }
 
   void stopChatHudPolling() {
-    _chatHudTimer?.cancel();
-    _chatHudTimer = null;
+    _pollTimer?.cancel();
+    _pollTimer = null;
   }
+
+  Future<void> fetchChatMessages() async {
+    await _loadSavedIp();
+    final url = Uri.parse('http://${_savedIp ?? _ip}:$_defaultPort/gamechat?lastId=${_lastChatId < 0 ? 0 : _lastChatId}');
+    try {
+      final resp = await http.get(url);
+      if (resp.statusCode == 200) {
+        final List<dynamic> data = json.decode(resp.body);
+        if (data.isNotEmpty) {
+          int maxId = _lastChatId < 0 ? 0 : _lastChatId;
+          bool newMsg = false;
+          for (final msg in data) {
+            final id = msg['id'] ?? 0;
+            if (id > maxId) maxId = id;
+            if (_lastChatId < 0) continue; // skip on first sync
+            final message = msg['msg'] ?? '';
+            final sender = msg['sender'] ?? '';
+            await DatabaseHelper().insertLog('CHAT', message, matchId: _currentMatchId, sender: sender);
+            newMsg = true;
+          }
+          _lastChatId = maxId;
+          if (newMsg) notifyListeners();
+        }
+      }
+    } catch (e) {
+      print('Error fetching chat: $e');
+    }
+  }
+
+  Future<void> fetchHudMessages() async {
+    await _loadSavedIp();
+    final url = Uri.parse('http://${_savedIp ?? _ip}:$_defaultPort/hudmsg?lastEvt=${_lastHudId < 0 ? 0 : _lastHudId}&lastDmg=${_lastDmgId < 0 ? 0 : _lastDmgId}');
+    try {
+      final resp = await http.get(url);
+      if (resp.statusCode == 200) {
+        final data = json.decode(resp.body);
+        final List<dynamic> events = data['events'] ?? [];
+        final List<dynamic> damage = data['damage'] ?? [];
+        bool newMsg = false;
+        int maxEvtId = _lastHudId < 0 ? 0 : _lastHudId;
+        int maxDmgId = _lastDmgId < 0 ? 0 : _lastDmgId;
+        for (final msg in events) {
+          final id = msg['id'] ?? 0;
+          if (id > maxEvtId) maxEvtId = id;
+          if (_lastHudId < 0) continue; // skip on first sync
+          final message = msg['msg'] ?? '';
+          await DatabaseHelper().insertLog('HUD', message, matchId: _currentMatchId);
+          newMsg = true;
+        }
+        for (final msg in damage) {
+          final id = msg['id'] ?? 0;
+          if (id > maxDmgId) maxDmgId = id;
+          if (_lastDmgId < 0) continue; // skip on first sync
+          final message = msg['msg'] ?? '';
+          await DatabaseHelper().insertLog('HUD', message, matchId: _currentMatchId);
+          newMsg = true;
+        }
+        _lastHudId = maxEvtId;
+        _lastDmgId = maxDmgId;
+        if (newMsg) notifyListeners();
+      }
+    } catch (e) {
+      print('Error fetching hud: $e');
+    }
+  }
+
 
   Future<void> fetchChat() async {
     try {

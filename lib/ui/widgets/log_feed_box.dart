@@ -12,7 +12,7 @@ class LogFeedBox extends StatefulWidget {
 
 class _LogFeedBoxState extends State<LogFeedBox> {
   List<Map<String, dynamic>> _logs = [];
-
+  final ScrollController _scrollController = ScrollController();
   WTApiService? _apiService;
 
   @override
@@ -33,14 +33,23 @@ class _LogFeedBoxState extends State<LogFeedBox> {
   @override
   void dispose() {
     _apiService?.removeListener(_onApiUpdate);
+    _scrollController.dispose();
     super.dispose();
   }
 
   Future<void> _loadLogs() async {
-    final logs = await DatabaseHelper().getLastMatchLogs(limit: 10);
+    final logs = await DatabaseHelper().getLastMatchLogs(limit: 30);
     setState(() {
       _logs = logs;
     });
+    // Auto-scroll to top (latest message) after logs update
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   @override
@@ -48,6 +57,7 @@ class _LogFeedBoxState extends State<LogFeedBox> {
     return Container(
       color: Colors.black87,
       child: ListView.builder(
+        controller: _scrollController,
         reverse: true,
         itemCount: _logs.length,
         itemBuilder: (context, idx) {
