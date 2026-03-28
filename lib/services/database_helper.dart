@@ -1,24 +1,25 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart'; // Nodig voor ChangeNotifier
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
-class DatabaseHelper {
+class _LogInsertTask {
+  final String type;
+  final String message;
+  final String? matchId;
+  final String? sender;
+  final Completer<void> completer;
+  _LogInsertTask(this.type, this.message, this.matchId, this.sender, this.completer);
+}
 
-    Future<void> insertLog(String type, String message, {String? matchId, String? sender}) async {
-      final dbClient = await db;
-      await dbClient.insert('match_logs', {
-        'match_id': matchId,
-        'type': type,
-        'sender': sender,
-        'message': message,
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-      });
-    }
+class DatabaseHelper extends ChangeNotifier {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   factory DatabaseHelper() => _instance;
   DatabaseHelper._internal();
 
   static Database? _db;
+  final List<_LogInsertTask> _logInsertQueue = [];
+  bool _isInsertingLog = false;
 
   Future<Database> get db async {
     if (_db != null) return _db!;
@@ -29,6 +30,7 @@ class DatabaseHelper {
   Future<Database> _initDb() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'map_history.db');
+
     return await openDatabase(
       path,
       version: 3,
@@ -77,52 +79,60 @@ class DatabaseHelper {
       },
     );
   }
-  Future<void> insertMatchLog({
-    required String matchId,
-    required String type,
-    String? sender,
-    required String message,
-    required int timestamp,
-  }) async {
-    final dbClient = await db;
-    await dbClient.insert('match_logs', {
-      'match_id': matchId,
-      'type': type,
-      'sender': sender,
-      'message': message,
-      'timestamp': timestamp,
-    });
+
+  // --- LOGGING METHODS ---
+
+  Future<void> insertLog(String type, String message, {String? matchId, String? sender}) async {
+    final completer = Completer<void>();
+    _logInsertQueue.add(_LogInsertTask(type, message, matchId, sender, completer));
+    _processLogQueue();
+    return completer.future;
   }
 
-  Future<List<Map<String, dynamic>>> getLastMatchLogs({int limit = 10, String? matchId}) async {
+  void _processLogQueue() async {
+    if (_isInsertingLog || _logInsertQueue.isEmpty) return;
+    _isInsertingLog = true;
+
+    final task = _logInsertQueue.removeAt(0);
+    try {
+      final dbClient = await db;
+      await dbClient.insert(
+        'match_logs',
+        {
+          'match_id': task.matchId,
+          'type': task.type,
+          'sender': task.sender,
+          'message': task.message,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      
+      task.completer.complete();
+      notifyListeners(); // DIT trigger de UI-refresh in MapScreen!
+    } catch (e) {
+      debugPrint("DB Insert Error: $e");
+      task.completer.completeError(e);
+    } finally {
+      _isInsertingLog = false;
+      if (_logInsertQueue.isNotEmpty) {
+        _processLogQueue();
+      }
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getLastMatchLogs({int limit = 15, String? matchId}) async {
     final dbClient = await db;
     final where = matchId != null ? 'WHERE match_id = ?' : '';
     final args = matchId != null ? [matchId] : [];
-    final result = await dbClient.rawQuery(
+    
+    return await dbClient.rawQuery(
       'SELECT * FROM match_logs $where ORDER BY timestamp DESC LIMIT ?',
       [...args, limit],
     );
-    return result;
   }
 
-  Future<void> cleanupOldMatches({int keep = 30}) async {
-    final dbClient = await db;
-    // Vind de laatste N match_id's
-    final matches = await dbClient.rawQuery(
-      'SELECT DISTINCT match_id FROM match_logs ORDER BY timestamp DESC LIMIT ?',
-      [keep],
-    );
-    final keepIds = matches.map((e) => e['match_id']).toSet();
-    // Verwijder alles wat niet in de laatste N zit
-    if (keepIds.isNotEmpty) {
-      final placeholders = List.filled(keepIds.length, '?').join(',');
-      await dbClient.delete(
-        'match_logs',
-        where: 'match_id NOT IN ($placeholders)',
-        whereArgs: keepIds.toList(),
-      );
-    }
-  }
+  // --- HISTORY METHODS ---
 
   Future<void> insertHistory({
     required String mapName,
@@ -145,5 +155,23 @@ class DatabaseHelper {
       'turret_angle': turretAngle,
       'timestamp': timestamp,
     });
+  }
+
+  Future<void> cleanupOldMatches({int keep = 30}) async {
+    final dbClient = await db;
+    final matches = await dbClient.rawQuery(
+      'SELECT DISTINCT match_id FROM match_logs ORDER BY timestamp DESC LIMIT ?',
+      [keep],
+    );
+    final keepIds = matches.map((e) => e['match_id']).toSet();
+    
+    if (keepIds.isNotEmpty) {
+      final placeholders = List.filled(keepIds.length, '?').join(',');
+      await dbClient.delete(
+        'match_logs',
+        where: 'match_id NOT IN ($placeholders)',
+        whereArgs: keepIds.toList(),
+      );
+    }
   }
 }
