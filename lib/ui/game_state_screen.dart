@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:provider/provider.dart';
-import '../services/wt_api_service.dart';
-import '../services/database_helper.dart';
 import 'widgets/overlay_menu.dart';
 import '../services/game_data_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GameStateScreen extends StatelessWidget {
-  const GameStateScreen({Key? key}) : super(key: key);
+  const GameStateScreen({super.key});
 
 
   String prettyJson(Object? data) {
@@ -76,7 +74,7 @@ class GameStateScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(5),
                 ),
-                color: Theme.of(context).colorScheme.surfaceVariant,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: Padding(
                   padding: const EdgeInsets.all(12.0),
                   child: Column(

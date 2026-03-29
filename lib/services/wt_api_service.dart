@@ -10,14 +10,71 @@ import 'package:flutter/foundation.dart';
 
 
 
+class UnitSnapshot {
+  final String id;
+  final double x;
+  final double y;
+  final String team;
+  final DateTime timestamp;
+
+  UnitSnapshot({
+    required this.id,
+    required this.x,
+    required this.y,
+    required this.team,
+    required this.timestamp,
+  });
+}
+
+class DeathEvent {
+  final String id;
+  final double x;
+  final double y;
+  final String team;
+  final DateTime timestamp;
+  bool confirmed;
+
+  DeathEvent({
+    required this.id,
+    required this.x,
+    required this.y,
+    required this.team,
+    required this.timestamp,
+    this.confirmed = false,
+  });
+}
+
 class WTApiService extends ChangeNotifier {
+    /// Returns a list of (x, y, team, timestamp) for the given unit id, ordered oldest to newest
+    List<UnitSnapshot> getUnitTrail(String unitId) {
+      final List<UnitSnapshot> trail = [];
+      for (final snapshot in _historicalBuffer) {
+        for (final unit in snapshot) {
+          if (unit.id == unitId) {
+            trail.add(unit);
+            break;
+          }
+        }
+      }
+      return trail;
+    }
   // For chat & HUD polling
   int _lastChatId = -1;
   int _lastHudId = -1;
   int _lastDmgId = -1;
   String? _currentMatchId;
   Timer? _pollTimer;
+
   String? _savedIp;
+
+  // Historical buffer for unit positions (5 minutes at 500ms = 600 entries)
+  final int _bufferMaxLength = 600;
+  final List<List<UnitSnapshot>> _historicalBuffer = [];
+  List<List<UnitSnapshot>> get historicalBuffer => List.unmodifiable(_historicalBuffer);
+
+  // List of recently detected deaths (for overlay)
+  final List<DeathEvent> _recentDeaths = [];
+  List<DeathEvent> get recentDeaths => List.unmodifiable(_recentDeaths);
 
 
   void setCurrentMatchId(String matchId) {
@@ -72,7 +129,61 @@ class WTApiService extends ChangeNotifier {
     _pollTimer = Timer.periodic(const Duration(milliseconds: 500), (_) async {
       await fetchChatMessages();
       await fetchHudMessages();
+      // _updateHistoricalBuffer() is now called at the end of _fetchAll
     });
+  }
+
+  // Call this every polling tick to update the buffer
+  void _updateHistoricalBuffer() {
+    debugPrint('[Buffer] _updateHistoricalBuffer called');
+    if (mapObjects == null) {
+      debugPrint('[Buffer] mapObjects is null');
+      return;
+    }
+    debugPrint('[Buffer] mapObjects length: \\${mapObjects!.length}');
+    final now = DateTime.now();
+    final List<UnitSnapshot> snapshot = [];
+    for (final obj in mapObjects!) {
+      // Expecting obj to have 'id', 'x', 'y', 'team' fields
+      final id = obj['id']?.toString() ?? '';
+      final x = (obj['x'] ?? 0).toDouble();
+      final y = (obj['y'] ?? 0).toDouble();
+      final team = obj['team']?.toString() ?? 'unknown';
+      snapshot.add(UnitSnapshot(id: id, x: x, y: y, team: team, timestamp: now));
+    }
+    debugPrint('[Buffer] Adding snapshot with \\${snapshot.length} units');
+    _historicalBuffer.add(snapshot);
+    if (_historicalBuffer.length > _bufferMaxLength) {
+      _historicalBuffer.removeAt(0);
+    }
+    debugPrint('[Buffer] Buffer now has \\${_historicalBuffer.length} snapshots');
+    _detectDeaths();
+  }
+
+  // Detect units that disappeared between the last two snapshots
+  void _detectDeaths() {
+    if (_historicalBuffer.length < 2) return;
+    final now = DateTime.now();
+    final prev = _historicalBuffer[_historicalBuffer.length - 2];
+    final curr = _historicalBuffer.last;
+    final currIds = curr.map((u) => u.id).toSet();
+    for (final unit in prev) {
+      if (!currIds.contains(unit.id)) {
+        // Only add if not already in recent deaths (avoid duplicates)
+        final already = _recentDeaths.any((d) => d.id == unit.id && (now.difference(d.timestamp).inSeconds < 300));
+        if (!already) {
+          _recentDeaths.add(DeathEvent(
+            id: unit.id,
+            x: unit.x,
+            y: unit.y,
+            team: unit.team,
+            timestamp: unit.timestamp,
+          ));
+        }
+      }
+    }
+    // Remove deaths older than 5 minutes
+    _recentDeaths.removeWhere((d) => now.difference(d.timestamp).inSeconds > 300);
   }
 
   void stopChatHudPolling() {
@@ -290,6 +401,7 @@ class WTApiService extends ChangeNotifier {
   }
 
   Future<void> _fetchAll() async {
+    debugPrint('[Buffer] _fetchAll called');
     bool ok = true;
     String? error;
     // Haal /state op
@@ -325,6 +437,7 @@ class WTApiService extends ChangeNotifier {
       },
     );
     mapObjects = obj;
+    debugPrint('[Buffer] mapObjects set: ${mapObjects != null ? mapObjects!.length : 'null'}');
     // Extract heading (indicators) en turret_angle (state)
     if (indicators != null && indicators!['heading'] != null) {
       heading = (indicators!['heading'] as num).toDouble();
@@ -341,6 +454,8 @@ class WTApiService extends ChangeNotifier {
     }
     lastConnectionOk = ok;
     lastError = ok ? null : error;
+    // Update historical buffer after mapObjects is set
+    _updateHistoricalBuffer();
   }
 
   bool _listEquals(List<int> a, List<int> b) {

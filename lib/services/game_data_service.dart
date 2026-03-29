@@ -57,10 +57,10 @@ class GameDataService extends ChangeNotifier {
 
   /// Genereer een cache-busting map image URL
   String getMapImageUrl({bool unique = false}) {
-    final base = 'http://$_ip:8111/map.img?gen=${mapGeneration}';
+    final base = 'http://$_ip:8111/map.img?gen=$mapGeneration';
     if (unique) {
       // Voeg timestamp toe voor geforceerde refresh
-      return base + '&cb=' + DateTime.now().millisecondsSinceEpoch.toString();
+      return '$base&cb=${DateTime.now().millisecondsSinceEpoch}';
     }
     return base;
   }

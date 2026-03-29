@@ -9,8 +9,8 @@ import '../../services/unit_history_provider.dart';
 import '../widgets/map_painter.dart';
 import '../widgets/map_filter_menu.dart';
 import '../widgets/map_display.dart';
+import '../widgets/map_overlay_trails.dart';
 import '../../logic/tracker_service.dart';
-import '../../services/database_helper.dart';
 import '../../services/wt_api_service.dart';
 import '../widgets/log_feed_box.dart';
 
@@ -60,6 +60,7 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
       api.setCurrentMatchId(matchId);
       await api.syncEventIds();
       api.startChatHudPolling();
+      api.startPolling(); // Start polling for map objects and state
     });
   }
 
@@ -201,32 +202,46 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                     },
                     child: Container(
                       color: Colors.black,
-                      child: MapDisplay(
-                        key: ValueKey(lastMapImageKey ??
-                            (gameData.mapInfo != null
-                                ? (gameData.mapInfo!['name'] ??
-                                    gameData.mapInfo!['id'] ??
-                                    DateTime.now().millisecondsSinceEpoch)
-                                : DateTime.now().millisecondsSinceEpoch)),
-                        imageUrl: gameData.getMapImageUrl(),
-                        aspectRatio: aspect,
-                        placeholderText: 'Minimap niet geladen',
-                        onReload: () {
-                          setState(() {
-                            lastMapImageKey =
-                                DateTime.now().millisecondsSinceEpoch.toString();
-                          });
-                        },
-                        overlay: CustomPaint(
-                          size: Size.infinite,
-                          painter: MapPainter(
-                            mapObjects: filteredObjects,
-                            mapInfo: gameData.mapInfo,
-                            zoomScale: _currentScale,
-                            unitHistory: _unitHistoryProvider.recentHistory,
-                          ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            MapDisplay(
+                              key: ValueKey(lastMapImageKey ??
+                                  (gameData.mapInfo != null
+                                      ? (gameData.mapInfo!['name'] ??
+                                          gameData.mapInfo!['id'] ??
+                                          DateTime.now().millisecondsSinceEpoch)
+                                      : DateTime.now().millisecondsSinceEpoch)),
+                              imageUrl: gameData.getMapImageUrl(),
+                              aspectRatio: aspect,
+                              placeholderText: 'Minimap niet geladen',
+                              onReload: () {
+                                setState(() {
+                                  lastMapImageKey =
+                                      DateTime.now().millisecondsSinceEpoch.toString();
+                                });
+                              },
+                              overlay: CustomPaint(
+                                size: Size.infinite,
+                                painter: MapPainter(
+                                  mapObjects: filteredObjects,
+                                  mapInfo: gameData.mapInfo,
+                                  zoomScale: _currentScale,
+                                  unitHistory: _unitHistoryProvider.recentHistory,
+                                ),
+                              ),
+                            ),
+                            // Draw tactical overlay trails ON TOP of map and live units
+                            Consumer<WTApiService>(
+                              builder: (context, apiService, _) => MapOverlayTrails(
+                                apiService: apiService,
+                                mapInfo: gameData.mapInfo,
+                                transform: _transformationController.value,
+                                zoomScale: _currentScale,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
                     ),
                   );
                 },

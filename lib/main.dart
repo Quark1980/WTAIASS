@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
-import 'ui/game_state_screen.dart';
 import 'ui/pages/map_page.dart';
 import 'services/game_data_service.dart';
 import 'services/wt_api_service.dart';
