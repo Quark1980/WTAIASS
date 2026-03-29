@@ -137,6 +137,19 @@ class GameDataService extends ChangeNotifier {
             final y = map['y']?.toString() ?? '';
             unitId = '$type|$icon|$name|$x|$y';
           }
+          // Ensure color field is present and valid
+          String? color = map['color'] as String?;
+          if (color == null || !color.startsWith('#') || (color.length != 7)) {
+            // Assign default color based on icon/team (simple logic: red for one team, blue for another, yellow for player)
+            if (icon == 'Player') {
+              color = '#faC81E'; // yellow
+            } else if (icon == 'HeavyTank' || icon == 'MediumTank' || icon == 'LightTank' || icon == 'TankDestroyer' || icon == 'SPAA') {
+              color = '#fa0000'; // red (team 1)
+            } else {
+              color = '#1E90FA'; // blue (team 2 or unknown)
+            }
+            map['color'] = color;
+          }
           // Save to DB with timestamp
           final dbEntry = {
             'unit_id': unitId,

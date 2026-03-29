@@ -94,6 +94,12 @@ class MapPainter extends CustomPainter {
       for (final entry in unitHistory!.entries) {
         final points = entry.value;
         if (points.length < 2) continue;
+        // Try to get the team color from the first point (should be consistent for the unit)
+        Color teamColor = Colors.grey;
+        final String? hex = points.first['color'] as String?;
+        if (hex != null && hex.startsWith('#') && hex.length == 7) {
+          teamColor = Color(int.parse('FF${hex.substring(1)}', radix: 16));
+        }
         Offset? last;
         for (int i = 0; i < points.length; i++) {
           final p = points[i];
@@ -111,7 +117,7 @@ class MapPainter extends CustomPainter {
             if (alpha < 0.05) alpha = 0.05;
             if (alpha > 1.0) alpha = 1.0;
             final paint = Paint()
-              ..color = Colors.white.withOpacity(alpha)
+              ..color = teamColor.withOpacity(alpha)
               ..strokeWidth = 2.0 / zoomScale
               ..style = PaintingStyle.stroke;
             canvas.drawLine(last, pos, paint);
@@ -168,11 +174,18 @@ class MapPainter extends CustomPainter {
       if (x == null || y == null) continue;
 
       // Kleur uit hex-string
+
       Color teamColor = Colors.grey;
       final String? hex = obj['color'] as String?;
+      // Debug print for color
+      // ignore: avoid_print
+      print('[MapPainter] obj color field: $hex for icon: ${obj['icon']}');
       if (hex != null && hex.startsWith('#') && hex.length == 7) {
         teamColor = Color(int.parse('FF${hex.substring(1)}', radix: 16));
       }
+      // Debug print for actual teamColor value
+      // ignore: avoid_print
+      print('[MapPainter] using teamColor: $teamColor for icon: ${obj['icon']}');
       fillPaint.color = teamColor;
 
       final double drawX = x * size.width;
