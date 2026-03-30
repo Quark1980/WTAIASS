@@ -6,14 +6,12 @@ import 'dart:math' as math;
 class MapOverlayTrails extends StatefulWidget {
   final WTApiService apiService;
   final Map<String, dynamic>? mapInfo;
-  final Matrix4 transform;
   final double zoomScale;
 
   const MapOverlayTrails({
     super.key,
     required this.apiService,
     required this.mapInfo,
-    required this.transform,
     required this.zoomScale,
   });
 
@@ -47,7 +45,6 @@ class _MapOverlayTrailsState extends State<MapOverlayTrails> {
       painter: _TrailsPainter(
         apiService: widget.apiService,
         mapInfo: widget.mapInfo,
-        transform: widget.transform,
         zoomScale: widget.zoomScale,
         showDebugDot: true,
       ),
@@ -58,14 +55,12 @@ class _MapOverlayTrailsState extends State<MapOverlayTrails> {
 class _TrailsPainter extends CustomPainter {
   final WTApiService apiService;
   final Map<String, dynamic>? mapInfo;
-  final Matrix4 transform;
   final double zoomScale;
   final bool showDebugDot;
 
   _TrailsPainter({
     required this.apiService,
     required this.mapInfo,
-    required this.transform,
     required this.zoomScale,
     this.showDebugDot = false,
   });
@@ -74,7 +69,6 @@ class _TrailsPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (mapInfo == null) return;
     canvas.save();
-    canvas.transform(transform.storage);
 
     // Debug dot removed as requested
 

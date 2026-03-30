@@ -202,6 +202,9 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                     },
                     child: Container(
                       color: Colors.black,
+                      child: Transform(
+                        transform: _transformationController.value,
+                        alignment: Alignment.topLeft,
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
@@ -236,12 +239,12 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                               builder: (context, apiService, _) => MapOverlayTrails(
                                 apiService: apiService,
                                 mapInfo: gameData.mapInfo,
-                                transform: _transformationController.value,
                                 zoomScale: _currentScale,
                               ),
                             ),
                           ],
                         ),
+                      ),
                     ),
                   );
                 },
