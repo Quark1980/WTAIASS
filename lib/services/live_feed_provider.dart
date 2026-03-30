@@ -11,7 +11,8 @@ class LiveFeedProvider extends ChangeNotifier {
   int lastDmgId = 0;
   Timer? _timer;
 
-  LiveFeedProvider({this.baseUrl = 'http://localhost:8111'}) {
+  LiveFeedProvider({String? baseUrl})
+      : baseUrl = baseUrl ?? 'http://192.168.0.61:8111' {
     _start();
   }
 

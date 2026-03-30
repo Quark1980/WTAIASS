@@ -371,10 +371,35 @@ class WTApiService extends ChangeNotifier {
     _ip = prefs.getString(_prefsKey) ?? _defaultIp;
   }
 
+  /// Sets the IP address, stripping any port if present (e.g., '192.168.0.61:8111' -> '192.168.0.61')
   Future<void> setIp(String ip) async {
-    _ip = ip;
+    // Remove port if user entered it (e.g., '192.168.0.61:8111' -> '192.168.0.61')
+    final sanitizedIp = _stripPort(ip);
+    _ip = sanitizedIp;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsKey, ip);
+    await prefs.setString(_prefsKey, sanitizedIp);
+  }
+
+  /// Helper to strip port from IP string if present
+  String _stripPort(String ip) {
+    // IPv6 in []: [::1]:8111, IPv4: 192.168.0.61:8111
+    if (ip.startsWith('[')) {
+      // IPv6
+      final idx = ip.indexOf(']');
+      if (idx != -1) {
+        final after = ip.substring(idx + 1);
+        if (after.startsWith(':')) {
+          return ip.substring(0, idx + 1); // keep [IPv6]
+        }
+      }
+      return ip;
+    }
+    // IPv4 or hostname
+    final parts = ip.split(':');
+    if (parts.length > 1) {
+      return parts[0];
+    }
+    return ip;
   }
 
   String get ip => _ip;

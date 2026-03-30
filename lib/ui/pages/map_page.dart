@@ -178,6 +178,63 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
               }
             },
           ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.menu),
+            tooltip: 'Menu',
+            onSelected: (value) async {
+              if (value == 'settings') {
+                final prefs = await SharedPreferences.getInstance();
+                final currentIp = prefs.getString('pc_ip') ?? '192.168.0.61';
+                await showDialog(
+                  context: context,
+                  builder: (ctx) {
+                    final controller = TextEditingController(text: currentIp);
+                    return AlertDialog(
+                      title: const Text('Connection Settings'),
+                      content: TextField(
+                        controller: controller,
+                        decoration: const InputDecoration(labelText: 'PC IP Address'),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () async {
+                            final ip = controller.text;
+                            await prefs.setString('pc_ip', ip);
+                            // Update all services that use the IP
+                            if (mounted) setState(() {});
+                            Navigator.pop(ctx);
+                          },
+                          child: const Text('Save'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              } else if (value == 'debug') {
+                _showDebugSheet();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem<String>(
+                value: 'settings',
+                child: ListTile(
+                  leading: Icon(Icons.settings),
+                  title: Text('Connection Settings'),
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'debug',
+                child: ListTile(
+                  leading: Icon(Icons.bug_report),
+                  title: Text('Raw Data Debug'),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: SafeArea(
@@ -258,11 +315,7 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showDebugSheet,
-        tooltip: 'Toon raw data debug',
-        child: const Icon(Icons.bug_report),
-      ),
+      // No floatingActionButton (debug now in menu)
     );
   }
 }

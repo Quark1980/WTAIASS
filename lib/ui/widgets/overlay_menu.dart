@@ -59,6 +59,24 @@ class OverlayMenu extends StatelessWidget {
 
 Future<void> showSettingsDialog(BuildContext context, String currentIp, void Function(String) onSave) async {
   final controller = TextEditingController(text: currentIp);
+  // Helper to strip port from IP (duplicated from WTApiService for dialog use)
+  String stripPort(String ip) {
+    if (ip.startsWith('[')) {
+      final idx = ip.indexOf(']');
+      if (idx != -1) {
+        final after = ip.substring(idx + 1);
+        if (after.startsWith(':')) {
+          return ip.substring(0, idx + 1);
+        }
+      }
+      return ip;
+    }
+    final parts = ip.split(':');
+    if (parts.length > 1) {
+      return parts[0];
+    }
+    return ip;
+  }
   await showDialog(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -74,9 +92,10 @@ Future<void> showSettingsDialog(BuildContext context, String currentIp, void Fun
         ),
         ElevatedButton(
           onPressed: () async {
+            final sanitized = stripPort(controller.text);
             final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('pc_ip', controller.text);
-            onSave(controller.text);
+            await prefs.setString('pc_ip', sanitized);
+            onSave(sanitized);
             Navigator.pop(ctx);
           },
           child: const Text('Save'),
