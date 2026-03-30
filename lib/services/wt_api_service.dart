@@ -10,12 +10,15 @@ import 'package:flutter/foundation.dart';
 
 
 
+import 'package:flutter/material.dart';
+
 class UnitSnapshot {
   final String id;
   final double x;
   final double y;
   final String team;
   final DateTime timestamp;
+  final Color color;
 
   UnitSnapshot({
     required this.id,
@@ -23,6 +26,7 @@ class UnitSnapshot {
     required this.y,
     required this.team,
     required this.timestamp,
+    required this.color,
   });
 }
 
@@ -144,12 +148,14 @@ class WTApiService extends ChangeNotifier {
     final now = DateTime.now();
     final List<UnitSnapshot> snapshot = [];
     for (final obj in mapObjects!) {
-      // Expecting obj to have 'id', 'x', 'y', 'team' fields
+      // Expecting obj to have 'id', 'x', 'y', 'team', 'color' fields
       final id = obj['id']?.toString() ?? '';
       final x = (obj['x'] ?? 0).toDouble();
       final y = (obj['y'] ?? 0).toDouble();
       final team = obj['team']?.toString() ?? 'unknown';
-      snapshot.add(UnitSnapshot(id: id, x: x, y: y, team: team, timestamp: now));
+      final colorStr = obj['color']?.toString() ?? '#cccccc';
+      final color = _parseHexColor(colorStr);
+      snapshot.add(UnitSnapshot(id: id, x: x, y: y, team: team, timestamp: now, color: color));
     }
     debugPrint('[Buffer] Adding snapshot with \\${snapshot.length} units');
     _historicalBuffer.add(snapshot);
@@ -158,6 +164,14 @@ class WTApiService extends ChangeNotifier {
     }
     debugPrint('[Buffer] Buffer now has \\${_historicalBuffer.length} snapshots');
     _detectDeaths();
+  }
+
+  static Color _parseHexColor(String hex) {
+    String hexColor = hex.replaceAll('#', '');
+    if (hexColor.length == 6) {
+      hexColor = 'FF$hexColor';
+    }
+    return Color(int.parse(hexColor, radix: 16));
   }
 
   // Detect units that disappeared between the last two snapshots

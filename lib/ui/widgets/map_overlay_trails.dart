@@ -79,17 +79,12 @@ class _TrailsPainter extends CustomPainter {
     for (final snapshot in buffer) {
       for (final unit in snapshot) {
         final Offset pos = Offset(unit.x * size.width, unit.y * size.height);
-        final Color color = _teamColor(unit.team);
+        final Color color = unit.color.withOpacity(0.85);
         if (dotCount < 5) {
           debugPrint('[Overlay] Trail unit x=${unit.x} y=${unit.y} → pos=$pos color=$color');
           dotCount++;
         }
-        double radius = 0.4 / zoomScale; // ultra small
-        double border = 0.5 / zoomScale;
-        canvas.drawCircle(pos, radius + border, Paint()
-          ..color = Colors.black.withOpacity(0.6)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = border);
+        double radius = 0.6 / zoomScale; // 50% larger, no outline
         canvas.drawCircle(pos, radius, Paint()
           ..color = color
           ..style = PaintingStyle.fill);

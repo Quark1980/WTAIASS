@@ -15,21 +15,24 @@ WTAIASS uses a normalized coordinate system for all map overlays, unit positions
   - Overlay and live unit layers now use a single shared transformation matrix for zoom/pan (via a parent Transform widget).
   - All overlays and live units are always perfectly aligned at all zoom/pan levels.
   - Overlay elements (trails, deaths) scale with zoom using `1/zoomScale`.
+  - Trail dots now use the real unit color (from map_obj.json), are 50% larger, and have no outline for better visibility.
   - Overlay is drawn above the map and live units for visibility.
   - Death markers are intended to use the tracked unit color and match the live icon size, but are not yet visible (see TODO).
   - [FIXED] Overlay layer shifting/zoom bug: overlays now match the map exactly at all zoom/pan levels.
 
 
+
 **Known Issues (2026-03-30):**
 - [x] Overlay layer shifts vertically when zooming (matrix or projection bug). **[FIXED]**
-- [ ] Trail dots are not in team color (currently grey).
+- [x] Trail dots are not in team color (currently grey). **[FIXED]**
 - [ ] Death markers are not visible.
-- [x] Debug/pink dot should be removed.
+- [x] Debug/pink dot should be removed. **[FIXED]**
+
 
 **Next Steps:**
-1. Fix overlay zoom/pan alignment bug.
-2. Ensure trail dots use correct team color.
-3. Remove debug dot from overlay.
+1. Fix overlay zoom/pan alignment bug. **[DONE]**
+2. Ensure trail dots use correct team color. **[DONE]**
+3. Remove debug dot from overlay. **[DONE]**
 4. Fix death marker rendering and color.
 
 -- When drawing on the minimap or any overlay, convert normalized coordinates to pixel positions:
