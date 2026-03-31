@@ -41,6 +41,22 @@ class OverlayMenu extends StatelessWidget {
                   },
                 ),
                 ListTile(
+                  leading: const Icon(Icons.timeline),
+                  title: const Text('Trail Buffer Settings'),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final prefs = await SharedPreferences.getInstance();
+                    final initial = prefs.getInt('trail_buffer_seconds') ?? 60;
+                    await showDialog(
+                      context: context,
+                      builder: (ctx2) => SettingsTrailBufferDialog(
+                        initialSeconds: initial,
+                        onSave: (val) {},
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.bug_report),
                   title: const Text('Raw Data View'),
                   onTap: () {
@@ -56,6 +72,8 @@ class OverlayMenu extends StatelessWidget {
     );
   }
 }
+
+import 'settings_trail_buffer_dialog.dart';
 
 Future<void> showSettingsDialog(BuildContext context, String currentIp, void Function(String) onSave) async {
   final controller = TextEditingController(text: currentIp);
@@ -77,13 +95,38 @@ Future<void> showSettingsDialog(BuildContext context, String currentIp, void Fun
     }
     return ip;
   }
+
   await showDialog(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Configure PC IP'),
-      content: TextField(
-        controller: controller,
-        decoration: const InputDecoration(labelText: 'PC IP Address'),
+      title: const Text('Settings'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: controller,
+            decoration: const InputDecoration(labelText: 'PC IP Address'),
+          ),
+          const SizedBox(height: 24),
+          ListTile(
+            leading: const Icon(Icons.timeline),
+            title: const Text('Trail Buffer Length'),
+            subtitle: const Text('Adjust how much history is stored for dotted trails'),
+            onTap: () async {
+              final prefs = await SharedPreferences.getInstance();
+              final initial = prefs.getInt('trail_buffer_seconds') ?? 60;
+              await showDialog(
+                context: context,
+                builder: (ctx2) => SettingsTrailBufferDialog(
+                  initialSeconds: initial,
+                  onSave: (val) {
+                    // Optionally trigger a refresh if needed
+                  },
+                ),
+              );
+            },
+          ),
+        ],
       ),
       actions: [
         TextButton(

@@ -10,6 +10,7 @@ import '../widgets/map_painter.dart';
 import '../widgets/map_filter_menu.dart';
 import '../widgets/map_display.dart';
 import '../widgets/map_overlay_trails.dart';
+import '../widgets/settings_trail_buffer_dialog.dart';
 import '../../logic/tracker_service.dart';
 import '../../services/wt_api_service.dart';
 import '../widgets/log_feed_box.dart';
@@ -214,6 +215,16 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                     );
                   },
                 );
+              } else if (value == 'trail_buffer') {
+                final prefs = await SharedPreferences.getInstance();
+                final initial = prefs.getInt('trail_buffer_seconds') ?? 60;
+                await showDialog(
+                  context: context,
+                  builder: (ctx2) => SettingsTrailBufferDialog(
+                    initialSeconds: initial,
+                    onSave: (val) {},
+                  ),
+                );
               } else if (value == 'debug') {
                 _showDebugSheet();
               }
@@ -224,6 +235,13 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                 child: ListTile(
                   leading: Icon(Icons.settings),
                   title: Text('Connection Settings'),
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'trail_buffer',
+                child: ListTile(
+                  leading: Icon(Icons.timeline),
+                  title: Text('Trail Buffer Settings'),
                 ),
               ),
               const PopupMenuItem<String>(

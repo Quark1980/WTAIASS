@@ -49,6 +49,9 @@ class DeathEvent {
 }
 
 class WTApiService extends ChangeNotifier {
+  WTApiService() {
+    loadBufferSettings();
+  }
     /// Returns a list of (x, y, team, timestamp) for the given unit id, ordered oldest to newest
     List<UnitSnapshot> getUnitTrail(String unitId) {
       final List<UnitSnapshot> trail = [];
@@ -71,10 +74,15 @@ class WTApiService extends ChangeNotifier {
 
   String? _savedIp;
 
-  // Historical buffer for unit positions (5 minutes at 500ms = 600 entries)
-  final int _bufferMaxLength = 600;
+  // Historical buffer for unit positions (adjustable length)
+  int _bufferMaxSeconds = 60; // default 60s
   final List<List<UnitSnapshot>> _historicalBuffer = [];
   List<List<UnitSnapshot>> get historicalBuffer => List.unmodifiable(_historicalBuffer);
+
+  Future<void> loadBufferSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    _bufferMaxSeconds = prefs.getInt('trail_buffer_seconds') ?? 60;
+  }
 
   // List of recently detected deaths (for overlay)
   final List<DeathEvent> _recentDeaths = [];
@@ -138,14 +146,14 @@ class WTApiService extends ChangeNotifier {
   }
 
   // Call this every polling tick to update the buffer
-  void _updateHistoricalBuffer() {
+  void _updateHistoricalBuffer() async {
     debugPrint('[Buffer] _updateHistoricalBuffer called');
     if (mapObjects == null) {
       debugPrint('[Buffer] mapObjects is null');
       return;
     }
     debugPrint('[Buffer] mapObjects length: \\${mapObjects!.length}');
-    final now = DateTime.now();
+    final nowBuffer = DateTime.now();
     final List<UnitSnapshot> snapshot = [];
     for (final obj in mapObjects!) {
       // Expecting obj to have 'id', 'x', 'y', 'team', 'color' fields
@@ -155,11 +163,14 @@ class WTApiService extends ChangeNotifier {
       final team = obj['team']?.toString() ?? 'unknown';
       final colorStr = obj['color']?.toString() ?? '#cccccc';
       final color = _parseHexColor(colorStr);
-      snapshot.add(UnitSnapshot(id: id, x: x, y: y, team: team, timestamp: now, color: color));
+      snapshot.add(UnitSnapshot(id: id, x: x, y: y, team: team, timestamp: nowBuffer, color: color));
     }
     debugPrint('[Buffer] Adding snapshot with \\${snapshot.length} units');
     _historicalBuffer.add(snapshot);
-    if (_historicalBuffer.length > _bufferMaxLength) {
+    // Remove snapshots older than bufferMaxSeconds
+    final now = DateTime.now();
+    while (_historicalBuffer.isNotEmpty &&
+        nowBuffer.difference(_historicalBuffer.first.firstOrNull?.timestamp ?? nowBuffer).inSeconds > _bufferMaxSeconds) {
       _historicalBuffer.removeAt(0);
     }
     debugPrint('[Buffer] Buffer now has \\${_historicalBuffer.length} snapshots');
@@ -177,14 +188,14 @@ class WTApiService extends ChangeNotifier {
   // Detect units that disappeared between the last two snapshots
   void _detectDeaths() {
     if (_historicalBuffer.length < 2) return;
-    final now = DateTime.now();
+    final nowDeath = DateTime.now();
     final prev = _historicalBuffer[_historicalBuffer.length - 2];
     final curr = _historicalBuffer.last;
     final currIds = curr.map((u) => u.id).toSet();
     for (final unit in prev) {
       if (!currIds.contains(unit.id)) {
         // Only add if not already in recent deaths (avoid duplicates)
-        final already = _recentDeaths.any((d) => d.id == unit.id && (now.difference(d.timestamp).inSeconds < 300));
+        final already = _recentDeaths.any((d) => d.id == unit.id && (nowDeath.difference(d.timestamp).inSeconds < 300));
         if (!already) {
           _recentDeaths.add(DeathEvent(
             id: unit.id,
@@ -197,7 +208,7 @@ class WTApiService extends ChangeNotifier {
       }
     }
     // Remove deaths older than 5 minutes
-    _recentDeaths.removeWhere((d) => now.difference(d.timestamp).inSeconds > 300);
+    _recentDeaths.removeWhere((d) => nowDeath.difference(d.timestamp).inSeconds > 300);
   }
 
   void stopChatHudPolling() {
@@ -358,13 +369,6 @@ class WTApiService extends ChangeNotifier {
   final int _lastGen = 1;
   VoidCallback? onImageLoaded;
 
-  WTApiService({String? ip}) {
-    if (ip != null) {
-      _ip = ip;
-    } else {
-      _loadIp();
-    }
-  }
 
   Future<void> _loadIp() async {
     final prefs = await SharedPreferences.getInstance();
