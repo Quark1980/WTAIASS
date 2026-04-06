@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../services/wt_api_service.dart';
-import 'dart:math' as math;
 
 /// Overlay widget for drawing historical movement trails and death markers on the minimap.
 class MapOverlayTrails extends StatefulWidget {
@@ -106,7 +105,7 @@ class _TrailsPainter extends CustomPainter {
       final double t = (now.difference(death.timestamp).inMilliseconds / 4000.0).clamp(0.0, 1.0);
       final double alpha = 1.0 - t;
       if (alpha > 0.01) {
-        _drawDeathX(canvas, pos, color.withOpacity(alpha), effectiveScale: 1.0 / zoomScale);
+        _drawDeathX(canvas, pos, color.withOpacity(alpha), zoomScale: zoomScale);
       }
     }
     canvas.restore();
@@ -141,9 +140,9 @@ class _TrailsPainter extends CustomPainter {
   }
 
   // Draw a death marker as an X, scaled and faded (same size as live unit icon)
-  void _drawDeathX(Canvas canvas, Offset pos, Color color, {double effectiveScale = 1.0}) {
-    final double r = 6.0 / effectiveScale; // match live icon size
-    final double stroke = 2.0 / effectiveScale;
+  void _drawDeathX(Canvas canvas, Offset pos, Color color, {double zoomScale = 1.0}) {
+    final double r = 6.0 / zoomScale; // match live icon size on screen while zooming
+    final double stroke = 2.0 / zoomScale;
     canvas.drawLine(pos + Offset(-r, -r), pos + Offset(r, r), Paint()
       ..color = color
       ..strokeWidth = stroke

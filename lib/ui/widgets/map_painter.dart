@@ -21,6 +21,30 @@ class MapPainter extends CustomPainter {
     // --- Grid overlay ---
     final gridGeometry = buildMapGridGeometry(mapInfo, size);
     if (gridGeometry != null) {
+      final Paint extendedGridPaint = Paint()
+        ..color = Colors.white.withOpacity(0.10)
+        ..strokeWidth = 0.8;
+      for (double x = gridGeometry.gridRect.left;
+          x >= -gridGeometry.cellWidth;
+          x -= gridGeometry.cellWidth) {
+        _drawDashedLine(canvas, Offset(x, 0), Offset(x, size.height), extendedGridPaint);
+      }
+      for (double x = gridGeometry.gridRect.left + gridGeometry.cellWidth;
+          x <= size.width + gridGeometry.cellWidth;
+          x += gridGeometry.cellWidth) {
+        _drawDashedLine(canvas, Offset(x, 0), Offset(x, size.height), extendedGridPaint);
+      }
+      for (double y = gridGeometry.gridRect.top;
+          y >= -gridGeometry.cellHeight;
+          y -= gridGeometry.cellHeight) {
+        _drawDashedLine(canvas, Offset(0, y), Offset(size.width, y), extendedGridPaint);
+      }
+      for (double y = gridGeometry.gridRect.top + gridGeometry.cellHeight;
+          y <= size.height + gridGeometry.cellHeight;
+          y += gridGeometry.cellHeight) {
+        _drawDashedLine(canvas, Offset(0, y), Offset(size.width, y), extendedGridPaint);
+      }
+
       final Paint gridPaint = Paint()
         ..color = Colors.white.withOpacity(0.25)
         ..strokeWidth = 1.0;
@@ -39,33 +63,6 @@ class MapPainter extends CustomPainter {
           Offset(gridGeometry.gridRect.right, y),
           gridPaint,
         );
-      }
-
-      final labelStyle = TextStyle(
-        color: Colors.white.withOpacity(0.7),
-        fontSize: 12 / zoomScale,
-        fontWeight: FontWeight.bold,
-        shadows: const [Shadow(blurRadius: 2, color: Colors.black, offset: Offset(0.5, 0.5))],
-      );
-      for (int c = 0; c < gridGeometry.columnCount; c++) {
-        final label = (c + 1).toString();
-        final tp = TextPainter(
-          text: TextSpan(text: label, style: labelStyle),
-          textAlign: TextAlign.center,
-          textDirection: TextDirection.ltr,
-        );
-        tp.layout();
-        tp.paint(canvas, gridGeometry.columnLabelOffset(c, tp.width));
-      }
-      for (int r = 0; r < gridGeometry.rowCount; r++) {
-        final label = String.fromCharCode(65 + r);
-        final tp = TextPainter(
-          text: TextSpan(text: label, style: labelStyle),
-          textAlign: TextAlign.center,
-          textDirection: TextDirection.ltr,
-        );
-        tp.layout();
-        tp.paint(canvas, gridGeometry.rowLabelOffset(r, tp.height));
       }
 
       const double metersPerUnit = 200.0 / 225.0;
@@ -384,6 +381,22 @@ class MapPainter extends CustomPainter {
           canvas.drawLine(pos, endPos, arrowPaint);
         }
       }
+    }
+  }
+
+  void _drawDashedLine(Canvas canvas, Offset start, Offset end, Paint paint) {
+    const double dashLength = 8.0;
+    const double gapLength = 6.0;
+    final totalLength = (end - start).distance;
+    if (totalLength == 0) return;
+
+    final direction = (end - start) / totalLength;
+    double distance = 0.0;
+    while (distance < totalLength) {
+      final dashStart = start + (direction * distance);
+      final dashEnd = start + (direction * (distance + dashLength).clamp(0.0, totalLength));
+      canvas.drawLine(dashStart, dashEnd, paint);
+      distance += dashLength + gapLength;
     }
   }
 

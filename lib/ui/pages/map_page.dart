@@ -11,6 +11,7 @@ import '../widgets/map_filter_menu.dart';
 import '../widgets/map_display.dart';
 import '../widgets/map_grid_flash_overlay.dart';
 import '../widgets/map_overlay_trails.dart';
+import '../widgets/map_viewport_grid_labels_overlay.dart';
 import '../widgets/settings_grid_flash_duration_dialog.dart';
 import '../widgets/settings_trail_buffer_dialog.dart';
 import '../../logic/tracker_service.dart';
@@ -42,10 +43,13 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
   final UnitHistoryProvider _unitHistoryProvider = UnitHistoryProvider();
   final TransformationController _transformationController =
       TransformationController();
+  final GlobalKey _mapViewportKey = GlobalKey();
   double _currentScale = 1.0;
   final UnitTrackingService _tracker = UnitTrackingService();
+  static const String _followPlayerPrefKey = 'follow_player_centered';
   Set<String> selectedTypes = {};
   bool _filtersLoaded = false;
+  bool _followPlayer = false;
   Set<String> knownTypes = {};
   String? lastMapId;
   int? lastMapGeneration;
@@ -72,13 +76,16 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
   Future<void> _loadFilterPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getStringList('selectedTypes');
+    final followPlayer = prefs.getBool(_followPlayerPrefKey) ?? false;
     if (saved != null && saved.isNotEmpty) {
       setState(() {
         selectedTypes = saved.toSet();
+        _followPlayer = followPlayer;
         _filtersLoaded = true;
       });
     } else {
       setState(() {
+        _followPlayer = followPlayer;
         _filtersLoaded = true;
       });
     }
@@ -87,6 +94,57 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
   Future<void> _saveFilterPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('selectedTypes', selectedTypes.toList());
+  }
+
+  Future<void> _saveFollowPlayerPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_followPlayerPrefKey, _followPlayer);
+  }
+
+  Offset? _findPlayerPosition(List<dynamic> mapObjects, Size size) {
+    for (final obj in mapObjects) {
+      final icon = (obj['icon'] ?? '').toString();
+      if (icon != 'Player') continue;
+      final x = (obj['x'] as num?)?.toDouble();
+      final y = (obj['y'] as num?)?.toDouble();
+      if (x == null || y == null) continue;
+      return Offset(x * size.width, y * size.height);
+    }
+    return null;
+  }
+
+  void _centerOnPlayer(Offset playerPos, Size viewportSize) {
+    final matrix = Matrix4.copy(_transformationController.value);
+    final scale = (matrix.storage[0] + matrix.storage[5]) / 2.0;
+    if (scale <= 0) return;
+
+    final effectiveMatrix = Matrix4.copy(matrix)..multiply(matrix);
+    final currentPlayerScreenPos = MatrixUtils.transformPoint(effectiveMatrix, playerPos);
+    final targetCenter = Offset(viewportSize.width / 2, viewportSize.height / 2);
+    final delta = targetCenter - currentPlayerScreenPos;
+    if (delta.distance < 2.0) return;
+
+    final divisor = scale + 1.0;
+    if (divisor == 0) return;
+    final newTranslationX = matrix.storage[12] + (delta.dx / divisor);
+    final newTranslationY = matrix.storage[13] + (delta.dy / divisor);
+    matrix.setTranslationRaw(newTranslationX, newTranslationY, 0.0);
+    _transformationController.value = matrix;
+  }
+
+  void _scheduleCenterOnPlayer(List<dynamic> mapObjects) {
+    if (!_followPlayer) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_followPlayer) return;
+      final context = _mapViewportKey.currentContext;
+      if (context == null) return;
+      final renderObject = context.findRenderObject();
+      if (renderObject is! RenderBox || !renderObject.hasSize) return;
+      final viewportSize = renderObject.size;
+      final playerPos = _findPlayerPosition(mapObjects, viewportSize);
+      if (playerPos == null) return;
+      _centerOnPlayer(playerPos, viewportSize);
+    });
   }
 
   // Fallback types uit MapObjects.md
@@ -157,6 +215,8 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
     final filteredObjects = gameData.mapObjects
         .where((e) => selectedTypes.contains(e['type']?.toString() ?? ''))
         .toList();
+
+    _scheduleCenterOnPlayer(gameData.mapObjects);
 
       // Update tracker with latest map objects
       _tracker.updateUnits(gameData.mapObjects.cast<Map<String, dynamic>>());
@@ -244,6 +304,14 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                     },
                   ),
                 );
+              } else if (value == 'follow_player') {
+                setState(() {
+                  _followPlayer = !_followPlayer;
+                });
+                await _saveFollowPlayerPref();
+                if (_followPlayer) {
+                  _scheduleCenterOnPlayer(gameData.mapObjects);
+                }
               } else if (value == 'debug') {
                 _showDebugSheet();
               }
@@ -270,6 +338,13 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                   title: Text('Grid Flash Duration'),
                 ),
               ),
+              PopupMenuItem<String>(
+                value: 'follow_player',
+                child: ListTile(
+                  leading: Icon(_followPlayer ? Icons.my_location : Icons.location_searching),
+                  title: Text(_followPlayer ? 'Stop Following Player' : 'Keep Player Centered'),
+                ),
+              ),
               const PopupMenuItem<String>(
                 value: 'debug',
                 child: ListTile(
@@ -290,70 +365,81 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
               child: AnimatedBuilder(
                 animation: _unitHistoryProvider,
                 builder: (context, _) {
-                  return InteractiveViewer(
-                    minScale: 0.3,
-                    maxScale: 10.0,
-                    transformationController: _transformationController,
-                    onInteractionUpdate: (details) {
-                      final matrix = _transformationController.value;
-                      final scale = (matrix.storage[0] + matrix.storage[5]) / 2.0;
-                      setState(() {
-                        _currentScale = scale;
-                      });
-                    },
-                    child: Container(
-                      color: Colors.black,
-                      child: Transform(
-                        transform: _transformationController.value,
-                        alignment: Alignment.topLeft,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            MapDisplay(
-                              key: ValueKey(lastMapImageKey ??
-                                  (gameData.mapInfo != null
-                                      ? (gameData.mapInfo!['name'] ??
-                                          gameData.mapInfo!['id'] ??
-                                          DateTime.now().millisecondsSinceEpoch)
-                                      : DateTime.now().millisecondsSinceEpoch)),
-                              imageUrl: gameData.getMapImageUrl(),
-                              aspectRatio: aspect,
-                              placeholderText: 'Minimap niet geladen',
-                              onReload: () {
-                                setState(() {
-                                  lastMapImageKey =
-                                      DateTime.now().millisecondsSinceEpoch.toString();
-                                });
-                              },
-                              overlay: CustomPaint(
-                                size: Size.infinite,
-                                painter: MapPainter(
-                                  mapObjects: filteredObjects,
-                                  mapInfo: gameData.mapInfo,
-                                  zoomScale: _currentScale,
-                                  unitHistory: _unitHistoryProvider.recentHistory,
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      InteractiveViewer(
+                        key: _mapViewportKey,
+                        minScale: 0.3,
+                        maxScale: 10.0,
+                        transformationController: _transformationController,
+                        onInteractionUpdate: (details) {
+                          final matrix = _transformationController.value;
+                          final scale = (matrix.storage[0] + matrix.storage[5]) / 2.0;
+                          setState(() {
+                            _currentScale = scale;
+                          });
+                        },
+                        child: Container(
+                          color: Colors.black,
+                          child: Transform(
+                            transform: _transformationController.value,
+                            alignment: Alignment.topLeft,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                MapDisplay(
+                                  key: ValueKey(lastMapImageKey ??
+                                      (gameData.mapInfo != null
+                                          ? (gameData.mapInfo!['name'] ??
+                                              gameData.mapInfo!['id'] ??
+                                              DateTime.now().millisecondsSinceEpoch)
+                                          : DateTime.now().millisecondsSinceEpoch)),
+                                  imageUrl: gameData.getMapImageUrl(),
+                                  aspectRatio: aspect,
+                                  placeholderText: 'Minimap niet geladen',
+                                  onReload: () {
+                                    setState(() {
+                                      lastMapImageKey =
+                                          DateTime.now().millisecondsSinceEpoch.toString();
+                                    });
+                                  },
+                                  overlay: CustomPaint(
+                                    size: Size.infinite,
+                                    painter: MapPainter(
+                                      mapObjects: filteredObjects,
+                                      mapInfo: gameData.mapInfo,
+                                      zoomScale: _currentScale,
+                                      unitHistory: _unitHistoryProvider.recentHistory,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                Consumer<WTApiService>(
+                                  builder: (context, apiService, _) => MapOverlayTrails(
+                                    apiService: apiService,
+                                    mapInfo: gameData.mapInfo,
+                                    zoomScale: _currentScale,
+                                  ),
+                                ),
+                                Consumer<WTApiService>(
+                                  builder: (context, apiService, _) => MapGridFlashOverlay(
+                                    apiService: apiService,
+                                    mapInfo: gameData.mapInfo,
+                                    zoomScale: _currentScale,
+                                  ),
+                                ),
+                              ],
                             ),
-                            // Draw tactical overlay trails ON TOP of map and live units
-                            Consumer<WTApiService>(
-                              builder: (context, apiService, _) => MapOverlayTrails(
-                                apiService: apiService,
-                                mapInfo: gameData.mapInfo,
-                                zoomScale: _currentScale,
-                              ),
-                            ),
-                            Consumer<WTApiService>(
-                              builder: (context, apiService, _) => MapGridFlashOverlay(
-                                apiService: apiService,
-                                mapInfo: gameData.mapInfo,
-                                zoomScale: _currentScale,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
+                      Positioned.fill(
+                        child: MapViewportGridLabelsOverlay(
+                          mapInfo: gameData.mapInfo,
+                          transformationController: _transformationController,
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
