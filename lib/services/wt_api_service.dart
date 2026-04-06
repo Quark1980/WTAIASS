@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'database_helper.dart';
 
 import 'dart:ui' as ui;
-import 'package:flutter/foundation.dart';
 
 
 
@@ -48,9 +47,26 @@ class DeathEvent {
   });
 }
 
+class GridFlashEvent {
+  final String cellRef;
+  final DateTime startedAt;
+  final int durationMs;
+
+  GridFlashEvent({
+    required this.cellRef,
+    required this.startedAt,
+    required this.durationMs,
+  });
+
+  DateTime get expiresAt => startedAt.add(Duration(milliseconds: durationMs));
+
+  bool isExpired(DateTime now) => !now.isBefore(expiresAt);
+}
+
 class WTApiService extends ChangeNotifier {
   WTApiService() {
     loadBufferSettings();
+    loadGridFlashSettings();
   }
     /// Returns a list of (x, y, team, timestamp) for the given unit id, ordered oldest to newest
     List<UnitSnapshot> getUnitTrail(String unitId) {
@@ -79,9 +95,24 @@ class WTApiService extends ChangeNotifier {
   final List<List<UnitSnapshot>> _historicalBuffer = [];
   List<List<UnitSnapshot>> get historicalBuffer => List.unmodifiable(_historicalBuffer);
 
+  int _gridFlashDurationMs = 3000;
+  Timer? _gridFlashTimer;
+  final List<GridFlashEvent> _activeGridFlashEvents = [];
+  List<GridFlashEvent> get activeGridFlashEvents => List.unmodifiable(_activeGridFlashEvents);
+  int get gridFlashDurationMs => _gridFlashDurationMs;
+
+  static final RegExp _gridReferenceExp = RegExp(
+    r'(^|[^A-Za-z0-9])(\[?([A-Za-z])(\d{1,2})\]?)(?=$|[^A-Za-z0-9])',
+  );
+
   Future<void> loadBufferSettings() async {
     final prefs = await SharedPreferences.getInstance();
     _bufferMaxSeconds = prefs.getInt('trail_buffer_seconds') ?? 60;
+  }
+
+  Future<void> loadGridFlashSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    _gridFlashDurationMs = prefs.getInt('grid_flash_duration_ms') ?? 3000;
   }
 
   // List of recently detected deaths (for overlay)
@@ -216,6 +247,53 @@ class WTApiService extends ChangeNotifier {
     _pollTimer = null;
   }
 
+  List<String> _extractGridReferences(String message) {
+    final Set<String> refs = <String>{};
+    for (final match in _gridReferenceExp.allMatches(message)) {
+      final row = match.group(3);
+      final col = match.group(4);
+      if (row == null || col == null) continue;
+      refs.add('${row.toUpperCase()}$col');
+    }
+    return refs.toList(growable: false);
+  }
+
+  void _registerGridFlashMentions(String message) {
+    final refs = _extractGridReferences(message);
+    if (refs.isEmpty) return;
+
+    debugPrint('[GridFlash] Detected refs=$refs in chat message="$message"');
+
+    final now = DateTime.now();
+    for (final ref in refs) {
+      _activeGridFlashEvents.add(
+        GridFlashEvent(
+          cellRef: ref,
+          startedAt: now,
+          durationMs: _gridFlashDurationMs,
+        ),
+      );
+    }
+
+    _startGridFlashTimer();
+    debugPrint('[GridFlash] Active flashes=${_activeGridFlashEvents.length} durationMs=$_gridFlashDurationMs');
+    notifyListeners();
+  }
+
+  void _startGridFlashTimer() {
+    _gridFlashTimer ??= Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      final now = DateTime.now();
+      _activeGridFlashEvents.removeWhere((event) => event.isExpired(now));
+      if (_activeGridFlashEvents.isEmpty) {
+        timer.cancel();
+        _gridFlashTimer = null;
+        notifyListeners();
+        return;
+      }
+      notifyListeners();
+    });
+  }
+
   Future<void> fetchChatMessages() async {
     await _loadSavedIp();
     final url = Uri.parse('http://${_savedIp ?? _ip}:$_defaultPort/gamechat?lastId=${_lastChatId < 0 ? 0 : _lastChatId}');
@@ -233,6 +311,7 @@ class WTApiService extends ChangeNotifier {
             final message = msg['msg'] ?? '';
             final sender = msg['sender'] ?? '';
             await DatabaseHelper().insertLog('CHAT', message, matchId: _currentMatchId, sender: sender);
+            _registerGridFlashMentions(message);
             newMsg = true;
           }
           _lastChatId = maxId;
@@ -417,6 +496,14 @@ class WTApiService extends ChangeNotifier {
       await fetchMapImage();
       if (onUpdate != null) onUpdate();
     });
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    _pollingTimer?.cancel();
+    _gridFlashTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> fetchMapImage() async {

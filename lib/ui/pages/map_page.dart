@@ -9,7 +9,9 @@ import '../../services/unit_history_provider.dart';
 import '../widgets/map_painter.dart';
 import '../widgets/map_filter_menu.dart';
 import '../widgets/map_display.dart';
+import '../widgets/map_grid_flash_overlay.dart';
 import '../widgets/map_overlay_trails.dart';
+import '../widgets/settings_grid_flash_duration_dialog.dart';
 import '../widgets/settings_trail_buffer_dialog.dart';
 import '../../logic/tracker_service.dart';
 import '../../services/wt_api_service.dart';
@@ -100,6 +102,7 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
 
   @override
   Widget build(BuildContext context) {
+    final apiService = context.watch<WTApiService>();
     if (!_filtersLoaded) {
       // Wait for filter preferences to load before building UI
       return const Scaffold(
@@ -119,6 +122,9 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
       }
       mapId = mapInfo['id']?.toString() ?? mapInfo['name']?.toString();
       mapGeneration = gameData.mapGeneration;
+    }
+    if (apiService.mapImage != null && apiService.mapImage!.height > 0) {
+      aspect = apiService.mapImage!.width / apiService.mapImage!.height;
     }
 
     // Forceer refresh van map image bij nieuwe match (nieuwe mapId of mapGeneration)
@@ -222,7 +228,20 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                   context: context,
                   builder: (ctx2) => SettingsTrailBufferDialog(
                     initialSeconds: initial,
-                    onSave: (val) {},
+                    onSave: (val) {
+                      context.read<WTApiService>().loadBufferSettings();
+                    },
+                  ),
+                );
+              } else if (value == 'flash_duration') {
+                final apiService = context.read<WTApiService>();
+                await showDialog(
+                  context: context,
+                  builder: (ctx2) => SettingsGridFlashDurationDialog(
+                    initialDurationMs: apiService.gridFlashDurationMs,
+                    onSave: (val) {
+                      apiService.loadGridFlashSettings();
+                    },
                   ),
                 );
               } else if (value == 'debug') {
@@ -242,6 +261,13 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                 child: ListTile(
                   leading: Icon(Icons.timeline),
                   title: Text('Trail Buffer Settings'),
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'flash_duration',
+                child: ListTile(
+                  leading: Icon(Icons.flash_on),
+                  title: Text('Grid Flash Duration'),
                 ),
               ),
               const PopupMenuItem<String>(
@@ -312,6 +338,13 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                             // Draw tactical overlay trails ON TOP of map and live units
                             Consumer<WTApiService>(
                               builder: (context, apiService, _) => MapOverlayTrails(
+                                apiService: apiService,
+                                mapInfo: gameData.mapInfo,
+                                zoomScale: _currentScale,
+                              ),
+                            ),
+                            Consumer<WTApiService>(
+                              builder: (context, apiService, _) => MapGridFlashOverlay(
                                 apiService: apiService,
                                 mapInfo: gameData.mapInfo,
                                 zoomScale: _currentScale,
