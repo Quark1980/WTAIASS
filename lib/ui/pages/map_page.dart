@@ -14,6 +14,7 @@ import '../widgets/map_overlay_trails.dart';
 import '../widgets/map_viewport_grid_labels_overlay.dart';
 import '../widgets/settings_grid_flash_duration_dialog.dart';
 import '../widgets/settings_trail_buffer_dialog.dart';
+import '../widgets/settings_grid_opacity_dialog.dart';
 import '../../logic/tracker_service.dart';
 import '../../services/wt_api_service.dart';
 import '../widgets/log_feed_box.dart';
@@ -50,6 +51,7 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
   Set<String> selectedTypes = {};
   bool _filtersLoaded = false;
   bool _followPlayer = false;
+  double _gridOpacity = 0.25;
   Set<String> knownTypes = {};
   String? lastMapId;
   int? lastMapGeneration;
@@ -77,15 +79,18 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getStringList('selectedTypes');
     final followPlayer = prefs.getBool(_followPlayerPrefKey) ?? false;
+    final gridOpacity = prefs.getDouble('grid_opacity') ?? 0.25;
     if (saved != null && saved.isNotEmpty) {
       setState(() {
         selectedTypes = saved.toSet();
         _followPlayer = followPlayer;
+        _gridOpacity = gridOpacity;
         _filtersLoaded = true;
       });
     } else {
       setState(() {
         _followPlayer = followPlayer;
+        _gridOpacity = gridOpacity;
         _filtersLoaded = true;
       });
     }
@@ -312,6 +317,18 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                 if (_followPlayer) {
                   _scheduleCenterOnPlayer(gameData.mapObjects);
                 }
+              } else if (value == 'grid_opacity') {
+                await showDialog(
+                  context: context,
+                  builder: (ctx2) => SettingsGridOpacityDialog(
+                    initialOpacity: _gridOpacity,
+                    onSave: (val) {
+                      setState(() {
+                        _gridOpacity = val;
+                      });
+                    },
+                  ),
+                );
               } else if (value == 'debug') {
                 _showDebugSheet();
               }
@@ -343,6 +360,13 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                 child: ListTile(
                   leading: Icon(_followPlayer ? Icons.my_location : Icons.location_searching),
                   title: Text(_followPlayer ? 'Stop Following Player' : 'Keep Player Centered'),
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'grid_opacity',
+                child: ListTile(
+                  leading: Icon(Icons.grid_on),
+                  title: Text('Grid Opacity'),
                 ),
               ),
               const PopupMenuItem<String>(
@@ -411,6 +435,7 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                                       mapInfo: gameData.mapInfo,
                                       zoomScale: _currentScale,
                                       unitHistory: _unitHistoryProvider.recentHistory,
+                                      gridOpacity: _gridOpacity,
                                     ),
                                   ),
                                 ),

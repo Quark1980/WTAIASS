@@ -8,46 +8,50 @@ class MapPainter extends CustomPainter {
   final Map<String, dynamic>? mapInfo;
   final double zoomScale;
   final Map<String, List<Map<String, dynamic>>>? unitHistory;
+  final double gridOpacity;
 
   MapPainter({
     required this.mapObjects,
     this.mapInfo,
     this.zoomScale = 1.0,
     this.unitHistory,
+    this.gridOpacity = 0.25,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
+    final effectiveZoom = zoomScale <= 0 ? 1.0 : zoomScale;
+
     // --- Grid overlay ---
     final gridGeometry = buildMapGridGeometry(mapInfo, size);
     if (gridGeometry != null) {
       final Paint extendedGridPaint = Paint()
-        ..color = Colors.white.withOpacity(0.10)
-        ..strokeWidth = 0.8;
+        ..color = Colors.white.withOpacity(gridOpacity)
+        ..strokeWidth = 1.0 / effectiveZoom;
       for (double x = gridGeometry.gridRect.left;
           x >= -gridGeometry.cellWidth;
           x -= gridGeometry.cellWidth) {
-        _drawDashedLine(canvas, Offset(x, 0), Offset(x, size.height), extendedGridPaint);
+        canvas.drawLine(Offset(x, 0), Offset(x, size.height), extendedGridPaint);
       }
       for (double x = gridGeometry.gridRect.left + gridGeometry.cellWidth;
           x <= size.width + gridGeometry.cellWidth;
           x += gridGeometry.cellWidth) {
-        _drawDashedLine(canvas, Offset(x, 0), Offset(x, size.height), extendedGridPaint);
+        canvas.drawLine(Offset(x, 0), Offset(x, size.height), extendedGridPaint);
       }
       for (double y = gridGeometry.gridRect.top;
           y >= -gridGeometry.cellHeight;
           y -= gridGeometry.cellHeight) {
-        _drawDashedLine(canvas, Offset(0, y), Offset(size.width, y), extendedGridPaint);
+        canvas.drawLine(Offset(0, y), Offset(size.width, y), extendedGridPaint);
       }
       for (double y = gridGeometry.gridRect.top + gridGeometry.cellHeight;
           y <= size.height + gridGeometry.cellHeight;
           y += gridGeometry.cellHeight) {
-        _drawDashedLine(canvas, Offset(0, y), Offset(size.width, y), extendedGridPaint);
+        canvas.drawLine(Offset(0, y), Offset(size.width, y), extendedGridPaint);
       }
 
       final Paint gridPaint = Paint()
-        ..color = Colors.white.withOpacity(0.25)
-        ..strokeWidth = 1.0;
+        ..color = Colors.white.withOpacity(gridOpacity)
+        ..strokeWidth = 1.0 / effectiveZoom;
       for (int c = 0; c <= gridGeometry.columnCount; c++) {
         final x = gridGeometry.gridRect.left + (c * gridGeometry.cellWidth);
         canvas.drawLine(
@@ -66,12 +70,15 @@ class MapPainter extends CustomPainter {
       }
 
       const double metersPerUnit = 200.0 / 225.0;
-      final gridInfo = 'Gridcel: ${gridGeometry.cellSizeX.toStringAsFixed(0)}x${gridGeometry.cellSizeY.toStringAsFixed(0)} units = ${(gridGeometry.cellSizeX * metersPerUnit).toStringAsFixed(0)}x${(gridGeometry.cellSizeY * metersPerUnit).toStringAsFixed(0)} m';
+      final gridInfo =
+          'Gridcel: ${gridGeometry.cellSizeX.toStringAsFixed(0)}x${gridGeometry.cellSizeY.toStringAsFixed(0)} units = ${(gridGeometry.cellSizeX * metersPerUnit).toStringAsFixed(0)}x${(gridGeometry.cellSizeY * metersPerUnit).toStringAsFixed(0)} m';
       final gridInfoStyle = TextStyle(
         color: Colors.white.withOpacity(0.8),
-        fontSize: 14 / zoomScale,
+        fontSize: 14 / effectiveZoom,
         fontWeight: FontWeight.bold,
-        shadows: const [Shadow(blurRadius: 2, color: Colors.black, offset: Offset(1, 1))],
+        shadows: const [
+          Shadow(blurRadius: 2, color: Colors.black, offset: Offset(1, 1))
+        ],
       );
       final gridInfoPainter = TextPainter(
         text: TextSpan(text: gridInfo, style: gridInfoStyle),
@@ -80,7 +87,8 @@ class MapPainter extends CustomPainter {
       );
       gridInfoPainter.layout();
       const double margin = 8.0;
-      final infoPos = Offset(margin, size.height - gridInfoPainter.height - margin);
+      final infoPos =
+          Offset(margin, size.height - gridInfoPainter.height - margin);
       gridInfoPainter.paint(canvas, infoPos);
     }
     if (mapObjects.isEmpty) return;
@@ -116,7 +124,7 @@ class MapPainter extends CustomPainter {
             if (alpha > 1.0) alpha = 1.0;
             final paint = Paint()
               ..color = teamColor.withOpacity(alpha)
-              ..strokeWidth = 2.0 / zoomScale
+              ..strokeWidth = 2.0 / effectiveZoom
               ..style = PaintingStyle.stroke;
             canvas.drawLine(last, pos, paint);
           }
@@ -125,11 +133,10 @@ class MapPainter extends CustomPainter {
       }
     }
 
-    final fillPaint = Paint()
-      ..style = PaintingStyle.fill;
+    final fillPaint = Paint()..style = PaintingStyle.fill;
     final strokePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5 / zoomScale
+      ..strokeWidth = 1.5 / effectiveZoom
       ..color = Colors.black;
 
     // Find player position (normalized)
@@ -152,7 +159,9 @@ class MapPainter extends CustomPainter {
     double mapHeight = 1.0;
     double minX = 0.0, minY = 0.0, maxX = 1.0, maxY = 1.0;
     double metersPerUnit = 200.0 / 225.0;
-    if (mapInfo != null && mapInfo!['map_max'] != null && mapInfo!['map_min'] != null) {
+    if (mapInfo != null &&
+        mapInfo!['map_max'] != null &&
+        mapInfo!['map_min'] != null) {
       final List<dynamic> max = mapInfo!['map_max'];
       final List<dynamic> min = mapInfo!['map_min'];
       if (max.length == 2 && min.length == 2) {
@@ -183,7 +192,8 @@ class MapPainter extends CustomPainter {
       }
       // Debug print for actual teamColor value
       // ignore: avoid_print
-      print('[MapPainter] using teamColor: $teamColor for icon: ${obj['icon']}');
+      print(
+          '[MapPainter] using teamColor: $teamColor for icon: ${obj['icon']}');
       fillPaint.color = teamColor;
 
       final double drawX = x * size.width;
@@ -217,22 +227,28 @@ class MapPainter extends CustomPainter {
           text: distText,
           style: TextStyle(
             color: Colors.white,
-            fontSize: 8 / zoomScale,
+            fontSize: 8 / effectiveZoom,
             fontWeight: FontWeight.w500,
-            shadows: [Shadow(blurRadius: 2, color: Colors.black, offset: Offset(0.5, 0.5))],
+            shadows: [
+              Shadow(
+                  blurRadius: 2, color: Colors.black, offset: Offset(0.5, 0.5))
+            ],
           ),
         );
-        final tp = TextPainter(text: textSpan, textAlign: TextAlign.center, textDirection: TextDirection.ltr);
+        final tp = TextPainter(
+            text: textSpan,
+            textAlign: TextAlign.center,
+            textDirection: TextDirection.ltr);
         tp.layout();
-        tp.paint(canvas, pos - Offset(tp.width / 2, 14 / zoomScale));
+        tp.paint(canvas, pos - Offset(tp.width / 2, 14 / effectiveZoom));
       }
 
       // Tactical icon rendering
       final String icon = (obj['icon'] ?? '').toString();
       final String type = (obj['type'] ?? '').toString();
-      final double baseSize = 6.0 / zoomScale;
+      final double baseSize = 6.0 / effectiveZoom;
       final double captureZoneSize = baseSize * 2;
-      final double strokeW = 1.0 / zoomScale;
+      final double strokeW = 1.0 / effectiveZoom;
       final Paint outline = Paint()
         ..color = Colors.black
         ..style = PaintingStyle.stroke
@@ -251,21 +267,29 @@ class MapPainter extends CustomPainter {
         }
         final textSpan = TextSpan(
           text: letter,
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14 / zoomScale),
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 14 / effectiveZoom),
         );
-        final tp = TextPainter(text: textSpan, textAlign: TextAlign.center, textDirection: TextDirection.ltr);
+        final tp = TextPainter(
+            text: textSpan,
+            textAlign: TextAlign.center,
+            textDirection: TextDirection.ltr);
         tp.layout();
         tp.paint(canvas, pos - Offset(tp.width / 2, tp.height / 2));
       }
 
       void drawMediumTank() {
-        final rect = Rect.fromCenter(center: pos, width: baseSize, height: baseSize);
+        final rect =
+            Rect.fromCenter(center: pos, width: baseSize, height: baseSize);
         canvas.drawRect(rect, fill);
         canvas.drawRect(rect, outline);
       }
 
       void drawHeavyTank() {
-        final rect = Rect.fromCenter(center: pos, width: baseSize, height: baseSize);
+        final rect =
+            Rect.fromCenter(center: pos, width: baseSize, height: baseSize);
         canvas.drawRect(rect, fill);
         canvas.drawRect(rect, outline);
         // Dikke verticale lijn
@@ -273,12 +297,13 @@ class MapPainter extends CustomPainter {
         final p2 = Offset(pos.dx, pos.dy + baseSize / 2);
         final thick = Paint()
           ..color = Colors.white
-          ..strokeWidth = 2.0 / zoomScale;
+          ..strokeWidth = 2.0 / effectiveZoom;
         canvas.drawLine(p1, p2, thick);
       }
 
       void drawLightTank() {
-        final rect = Rect.fromCenter(center: pos, width: baseSize, height: baseSize);
+        final rect =
+            Rect.fromCenter(center: pos, width: baseSize, height: baseSize);
         canvas.drawRect(rect, fill);
         canvas.drawRect(rect, outline);
         // Diagonale lijn
@@ -362,7 +387,7 @@ class MapPainter extends CustomPainter {
         drawPlayer();
       } else {
         // fallback: cirkel
-        final double r = 5 / zoomScale;
+        final double r = 5 / effectiveZoom;
         canvas.drawCircle(pos, r, fill);
         canvas.drawCircle(pos, r, outline);
       }
@@ -376,7 +401,7 @@ class MapPainter extends CustomPainter {
           final endPos = pos + Offset(dx * arrowLength, dy * arrowLength);
           final arrowPaint = Paint()
             ..color = teamColor
-            ..strokeWidth = 1.5 / zoomScale
+            ..strokeWidth = 1.5 / effectiveZoom
             ..style = PaintingStyle.stroke;
           canvas.drawLine(pos, endPos, arrowPaint);
         }
@@ -384,9 +409,11 @@ class MapPainter extends CustomPainter {
     }
   }
 
-  void _drawDashedLine(Canvas canvas, Offset start, Offset end, Paint paint) {
-    const double dashLength = 8.0;
-    const double gapLength = 6.0;
+  void _drawDashedLine(
+      Canvas canvas, Offset start, Offset end, Paint paint, double zoomScale) {
+    final effectiveZoom = zoomScale <= 0 ? 1.0 : zoomScale;
+    final double dashLength = 8.0 / effectiveZoom;
+    final double gapLength = 6.0 / effectiveZoom;
     final totalLength = (end - start).distance;
     if (totalLength == 0) return;
 
@@ -394,7 +421,8 @@ class MapPainter extends CustomPainter {
     double distance = 0.0;
     while (distance < totalLength) {
       final dashStart = start + (direction * distance);
-      final dashEnd = start + (direction * (distance + dashLength).clamp(0.0, totalLength));
+      final dashEnd =
+          start + (direction * (distance + dashLength).clamp(0.0, totalLength));
       canvas.drawLine(dashStart, dashEnd, paint);
       distance += dashLength + gapLength;
     }
