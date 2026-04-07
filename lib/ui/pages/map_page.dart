@@ -15,7 +15,9 @@ import '../widgets/map_viewport_grid_labels_overlay.dart';
 import '../widgets/settings_grid_flash_duration_dialog.dart';
 import '../widgets/settings_trail_buffer_dialog.dart';
 import '../widgets/settings_grid_opacity_dialog.dart';
+import '../widgets/settings_proximity_alert_dialog.dart';
 import '../../logic/tracker_service.dart';
+import '../../services/proximity_alert_service.dart';
 import '../../services/wt_api_service.dart';
 import '../widgets/log_feed_box.dart';
 
@@ -52,6 +54,7 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
   bool _filtersLoaded = false;
   bool _followPlayer = false;
   double _gridOpacity = 0.25;
+  final ProximityAlertService _proximityAlert = ProximityAlertService();
   Set<String> knownTypes = {};
   String? lastMapId;
   int? lastMapGeneration;
@@ -60,6 +63,7 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
   void initState() {
     super.initState();
     _loadFilterPrefs();
+    _proximityAlert.loadSettings();
     _unitHistoryProvider.startAutoRefresh();
 
     // Start chat & HUD polling met Provider WTApiService
@@ -226,6 +230,9 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
       // Update tracker with latest map objects
       _tracker.updateUnits(gameData.mapObjects.cast<Map<String, dynamic>>());
 
+      // Proximity alert evaluation
+      _proximityAlert.evaluate(gameData.mapObjects, gameData.mapInfo);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Live Tactical Map - WTAIASS'),
@@ -329,6 +336,14 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                     },
                   ),
                 );
+              } else if (value == 'proximity_alert') {
+                await showDialog(
+                  context: context,
+                  builder: (ctx2) => SettingsProximityAlertDialog(
+                    service: _proximityAlert,
+                    onSave: () => setState(() {}),
+                  ),
+                );
               } else if (value == 'debug') {
                 _showDebugSheet();
               }
@@ -367,6 +382,13 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                 child: ListTile(
                   leading: Icon(Icons.grid_on),
                   title: Text('Grid Opacity'),
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'proximity_alert',
+                child: ListTile(
+                  leading: Icon(Icons.radar),
+                  title: Text('Proximity Alert'),
                 ),
               ),
               const PopupMenuItem<String>(
@@ -436,6 +458,8 @@ class _MapPageWithFilterState extends State<_MapPageWithFilter> {
                                       zoomScale: _currentScale,
                                       unitHistory: _unitHistoryProvider.recentHistory,
                                       gridOpacity: _gridOpacity,
+                                      proximityRadiusMeters: _proximityAlert.alertRadiusMeters,
+                                      proximityCircleOpacity: _proximityAlert.circleOpacity,
                                     ),
                                   ),
                                 ),

@@ -9,6 +9,8 @@ class MapPainter extends CustomPainter {
   final double zoomScale;
   final Map<String, List<Map<String, dynamic>>>? unitHistory;
   final double gridOpacity;
+  final double proximityRadiusMeters;
+  final double proximityCircleOpacity;
 
   MapPainter({
     required this.mapObjects,
@@ -16,6 +18,8 @@ class MapPainter extends CustomPainter {
     this.zoomScale = 1.0,
     this.unitHistory,
     this.gridOpacity = 0.25,
+    this.proximityRadiusMeters = 0.0,
+    this.proximityCircleOpacity = 0.25,
   });
 
   @override
@@ -172,6 +176,24 @@ class MapPainter extends CustomPainter {
         mapWidth = maxX - minX;
         mapHeight = maxY - minY;
       }
+    }
+
+    // --- Proximity alert circle ---
+    if (proximityRadiusMeters > 0 && playerPos != null && mapWidth > 0) {
+      const double metersPerUnitC = 200.0 / 225.0;
+      // Convert radius in meters to normalized coordinates
+      final double radiusNormX = (proximityRadiusMeters / metersPerUnitC) / mapWidth;
+      final double radiusNormY = (proximityRadiusMeters / metersPerUnitC) / mapHeight;
+      // Pixel radius (average of X and Y to handle non-square maps)
+      final double radiusPxX = radiusNormX * size.width;
+      final double radiusPxY = radiusNormY * size.height;
+      final double radiusPx = (radiusPxX + radiusPxY) / 2.0;
+      final Offset playerPxPos = Offset(playerPos!.dx * size.width, playerPos!.dy * size.height);
+      final Paint circlePaint = Paint()
+        ..color = Colors.yellow.withOpacity(proximityCircleOpacity)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5 / effectiveZoom;
+      canvas.drawCircle(playerPxPos, radiusPx, circlePaint);
     }
 
     for (var obj in mapObjects) {

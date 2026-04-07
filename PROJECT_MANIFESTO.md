@@ -9,69 +9,61 @@ Een modulaire Android-applicatie die als 'Tactical Advisor' fungeert tijdens War
 - **Intelligence:** Externe AI-services (gratis tiers) voor flank-voorspellingen.
 - **Output:** Canvas-overlay (kaart) + TTS (Text-to-Speech).
 
-## 🚀 Roadmap & Doelen
-- [ ] **Fase 1: Connectiviteit**
-    - [ ] Flutter-omgeving in VS Code opzetten.
-    - [ ] HTTP-service bouwen voor `map_obj.json`.
-    - [ ] IP-configuratie UI maken.
-- [ ] **Fase 2: Visuele Basis**
-    - [ ] Statische kaart (`map.pge`) laden in Stack.
-    - [ ] Live markers tekenen voor speler en teamleden.
-- [ ] **Fase 3: Tactische Intelligentie**
-    - [ ] Logica voor 'Friendly Death' tracking.
-    - [ ] TTS-integratie voor nabijheidswaarschuwingen.
-    - [ ] Terrein-analyse (wegen vs. water).
-- [ ] **Fase 4: AI Cloud Integratie**
-    - [ ] Koppeling met gratis AI-API (bijv. Groq of Gemini).
-    - [ ] "Predictive Flank" algoritme.
+## 🚀 Roadmap & Status
 
-## 📝 Belangrijke Informatie & API Logs
-- PC IP: `[Vul hier je IP in]`
-- Map Scale Factor: Moet worden berekend per map via `map_info.json`.
-- TTS Stem: Pitch op 0.8 voor militaire radio-feel.
+### ✅ Fase 1: Connectiviteit — VOLTOOID
+- [x] Flutter-omgeving in VS Code opzetten
+- [x] HTTP-service bouwen voor `map_obj.json`, `/state`, `/indicators`
+- [x] IP-configuratie UI via Settings dialog
+- [x] Live Data Inspector (debug sheet)
+
+### ✅ Fase 2: Visuele Basis — VOLTOOID
+- [x] Pixel-perfect map rendering met grid overlay
+- [x] Live markers met NATO-style iconen, kleuren, richtingspijlen
+- [x] Afstandsberekening en -weergave voor alle units
+- [x] Movement trails met fade (5 min history)
+- [x] HUD- en gamechat-feeds direct onder de kaart
+- [x] Chat-driven grid flash highlights
+- [x] Follow-player centering mode
+- [x] Viewport-pinned grid labels
+- [x] Grid opacity slider
+- [x] Unified solid grid (extended + playable area)
+
+### ✅ Fase 3: Tactische Intelligentie — IN PROGRESS
+- [x] **Proximity Alert System:**
+    - Ding-geluid bij enemy entry in configureerbare radius (0–500 m)
+    - TTS callout met clock-positie t.o.v. hull heading
+    - Alleen ground units (tanks, SPAA, tank destroyers)
+    - Eenmalig per unit entry; re-trigger bij re-entry
+    - Proximity circle overlay op de kaart
+    - Instelbare volumes (ding + TTS apart)
+    - TTS taal- en stemkeuze met live preview
+- [ ] 'Friendly Death' tracking en kill zone detectie
+- [ ] Terrein-analyse (wegen vs. water)
+
+### 🔮 Fase 4: AI Cloud Integratie — GEPLAND
+- [ ] Koppeling met gratis AI-API (Groq / Gemini)
+- [ ] "Predictive Flank" algoritme
+- [ ] Tactisch advies op basis van unit-bewegingen
 
 ## 🛠️ Tech Stack
 - **Taal:** Dart (Flutter)
-- **IDE:** VS Code
-- **AI Tools:** [Naam van je gekozen gratis service]
+- **IDE:** VS Code + GitHub Copilot
+- **Audio:** audioplayers (ding sound)
+- **TTS:** flutter_tts (voice callouts)
+- **Data:** SharedPreferences, SQLite (sqflite)
+- **Packages:** provider, http, wakelock_plus, uuid
 
-## 🚀 Roadmap & Doelen (Update 2026)
+## 📝 Belangrijke Informatie & API
+- PC IP: Configureerbaar via app settings
+- Map Scale Factor: Automatisch berekend per map via `map_info.json`
+- TTS Stem: Pitch op 0.8 voor militaire radio-feel
+- Coordinate system: Genormaliseerd 0.0–1.0, zie `COORDINATE_SYSTEM.md`
 
-- [x] **Fase 2: Visuele Basis**
-    - [x] Live Tactical Map module:
-        - Pixel-perfect rendering van map en units.
-        - Dynamische iconen, kleuren, richtingspijlen per unit.
-        - Grid overlay exact geschaald naar in-game minimap.
-        - Afstand tot speler zichtbaar boven elke unit.
-        - Realtime koppeling met War Thunder API (`/map_obj.json`, `/state`, `/map_info.json`).
-        - OverlayMenu en navigatie naar MapPage geïntegreerd.
-        - Live HUD- en gamechat-feeds direct onder de kaart, real-time zichtbaar.
-    - [x] Alle buildfouten opgelost, project bouwt en draait stabiel.
-- [x] **Fase 1: Connectiviteit**
-    - [x] Flutter-omgeving opzetten.
-    - [/] Floating Menu voor IP-configuratie (In progress).
-    - [x] Live Data Inspector (In progress).
-
-## ✅ Status
-- Kaart, grid, unit-tracking, afstandsweergave en live feeds werken stabiel.
-- Provider-architectuur voor robuuste, real-time updates.
-- Zie README.md en instructions.md voor details en implementatie.
-
-## 🔧 Componenten (Modulair)
-- **OverlayManager:** Beheert de zwevende knop en menu's.
-- **ConfigService:** Slaat het IP-adres lokaal op de telefoon op.
-- **JSON-Formatter:** Vertaalt rauwe API-data naar een leesbare lijst voor de gebruiker.
-
-## 🛠️ Debug Log
-- [x] **Feature: Constant Icon Scaling**
-    - Probleem: Icons worden te groot bij inzoomen.
-    - Oplossing: Inverse scaling toegepast in CustomPainter via TransformationController.
-    - Status: Werkend.
-
-    ## 🧠 Intelligentie & Logica
-- [ ] **Unit Tracking (Spatial)**
-    - [ ] ID-loze units koppelen op basis van nabijheid.
-    - [ ] 'Lost Unit' detectie voor Kill Zones.
-- [ ] **Advanced Orientation**
-    - [ ] Hull heading berekening voor AI-units.
-    - [ ] Turret azimuth integratie voor de Speler (uit /indicators).
+## 🧠 Intelligentie & Logica
+- [x] Unit tracking met trail history (UnitHistoryProvider)
+- [x] Clock-position berekening (atan2 relatief aan hull heading)
+- [x] Enemy detectie via kleurvergelijking met speler
+- [ ] ID-loze units koppelen op basis van nabijheid
+- [ ] Hull heading + turret azimuth integratie
+- [ ] Heatmap generatie uit historische data
