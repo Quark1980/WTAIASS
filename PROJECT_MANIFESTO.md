@@ -34,6 +34,7 @@ Een modulaire Android-applicatie die als 'Tactical Advisor' fungeert tijdens War
     - Ding-geluid bij enemy entry in configureerbare radius (0–500 m)
     - TTS callout met clock-positie t.o.v. hull heading
     - Alleen ground units (tanks, SPAA, tank destroyers)
+    - Enemy detectie op basis van rode kleur (RGB drempel) — geen false positives op friendlies
     - Eenmalig per unit entry; re-trigger bij re-entry
     - Proximity circle overlay op de kaart
     - Instelbare volumes (ding + TTS apart)

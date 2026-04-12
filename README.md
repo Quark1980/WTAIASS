@@ -23,6 +23,7 @@
 - **Ding** sound when a new enemy ground unit enters the radius
 - **TTS voice callout**: *"enemy spotted, 2 o'clock"* — relative to hull heading
 - Each enemy is called out **once** on entry; re-triggers if they leave and return
+- Enemy detection by color (red-dominant RGB) — never triggers on friendlies or player
 - Ground units only (tanks, SPAA, tank destroyers) — ignores aircraft
 - Adjustable ding volume, voice volume, and circle opacity
 - Selectable TTS language and voice with live preview
@@ -112,6 +113,10 @@ lib/
 ---
 
 ## Changelog
+
+### 2026-04-12
+- Fix: proximity alerts now only trigger on enemy units (red color), never on friendlies or player.
+- Enemy detection uses RGB threshold (R > 180, G < 100, B < 100) instead of color comparison with player.
 
 ### 2026-04-07
 - **Proximity Alert System**: ding sound + TTS clock-position callouts when enemy ground units enter a configurable radius around the player.

@@ -38,6 +38,17 @@ class ProximityAlertService {
     'ground_model',
   };
 
+  /// Returns true if the hex color is "red" (enemy).
+  /// Enemy colors from the WT API are #fa3200, #fa0000, etc.
+  static bool _isEnemyColor(String hex) {
+    if (!hex.startsWith('#') || hex.length != 7) return false;
+    final r = int.tryParse(hex.substring(1, 3), radix: 16) ?? 0;
+    final g = int.tryParse(hex.substring(3, 5), radix: 16) ?? 0;
+    final b = int.tryParse(hex.substring(5, 7), radix: 16) ?? 0;
+    // Red-dominant: R > 180 and G < 100 and B < 100
+    return r > 180 && g < 100 && b < 100;
+  }
+
   ProximityAlertService() {
     _initTts();
   }
@@ -166,9 +177,9 @@ class ProximityAlertService {
 
       // Only ground units
       if (!_groundIcons.contains(icon) && !_groundTypes.contains(type)) continue;
-      // Skip non-enemy (same color as player = friendly)
+      // Only enemy units — enemy color is red (#fa3200 / #fa0000 variants)
       final String? objColor = obj['color'] as String?;
-      if (objColor == null || objColor == playerColor) continue;
+      if (objColor == null || !_isEnemyColor(objColor)) continue;
 
       final double ox = (obj['x'] as num?)?.toDouble() ?? 0;
       final double oy = (obj['y'] as num?)?.toDouble() ?? 0;
